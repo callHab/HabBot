@@ -60,7 +60,7 @@ const __dirname = path.dirname(__filename);
 import "./lib/settings/config.js";
 
 // ==================== [ UNIVERSAL HEADER GENERATOR ] ==================== //
-const generateHeader = (text, width = 60) => {
+const generateHeader = (text, width = 20) => {
   // Create gradient for header
   const headerGradient = gradient(['#ff0000', '#9900cc', '#ff0066']);
   

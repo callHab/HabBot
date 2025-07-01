@@ -1,8 +1,9 @@
 import os from 'os';
 import { performance } from 'perf_hooks';
 import { getCommands } from '../../lib/pluginLoader.js'; // Pastikan ini diimpor
+import db from '../../lib/database.js'; // Import database untuk akses data user dan command
 
-const handler = async (m, { reply, db, sender }) => {
+const handler = async (m, { reply, sender }) => {
   const t0 = performance.now(); // Waktu mulai untuk perhitungan ping
   const user = db.getUser(sender); // Mendapatkan data user dari database
   const isPrem = db.isPremium(sender); // Memeriksa status premium user
@@ -16,11 +17,23 @@ const handler = async (m, { reply, db, sender }) => {
     // Hanya tampilkan command utama, bukan alias
     if (cmdData.isAlias) continue; 
 
+    // Ambil data command dari database untuk mendapatkan status premium/limit yang sebenarnya
+    const dbCommand = db.getCommand(cmdData.metadata.command[0]); 
+
     const category = cmdData.category || 'uncategorized'; // Ambil kategori dari metadata
     if (!categorizedCommands[category]) {
       categorizedCommands[category] = [];
     }
-    categorizedCommands[category].push(cmdData);
+    // Gunakan data dari database untuk premium dan limit
+    categorizedCommands[category].push({
+      ...cmdData,
+      metadata: {
+        ...cmdData.metadata,
+        premium: dbCommand.premium,
+        limit: dbCommand.limit,
+        limitCost: dbCommand.limitCost
+      }
+    });
   }
 
   let menuText = `╭─「 *MENU* 」\n`;
@@ -66,6 +79,6 @@ const handler = async (m, { reply, db, sender }) => {
 
 handler.help = ["menu"];
 handler.tags = ["info"];
-handler.command = ["menu"]; // Command utama untuk memanggil menu
+handler.command = ["menu"];
 
 export default handler;

@@ -1,0 +1,82 @@
+{
+  "menu": {
+    "name": "menu",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 7,
+    "createdAt": 1751277784624
+  },
+  "ping": {
+    "name": "ping",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 2,
+    "createdAt": 1751277784627
+  },
+  "profile": {
+    "name": "profile",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 1,
+    "createdAt": 1751277784633
+  },
+  "status": {
+    "name": "status",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 0,
+    "createdAt": 1751277784637
+  },
+  "cmd": {
+    "name": "cmd",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 0,
+    "createdAt": 1751277784643
+  },
+  "limit": {
+    "name": "limit",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 2,
+    "createdAt": 1751277784648
+  },
+  "public": {
+    "name": "public",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 0,
+    "createdAt": 1751277784659
+  },
+  "prem": {
+    "name": "prem",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 1,
+    "createdAt": 1751277784666
+  },
+  "help": {
+    "name": "help",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 0,
+    "createdAt": 1751277843073
+  },
+  "?": {
+    "name": "?",
+    "premium": false,
+    "limit": false,
+    "limitCost": 1,
+    "totalUsage": 0,
+    "createdAt": 1751277978631
+  }
+}

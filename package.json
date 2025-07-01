@@ -1,0 +1,40 @@
+{
+  "name": "habbot-whatsapp",
+  "version": "3.5.0",
+  "description": "WhatsApp Bot with Plugin System and Limit/Premium Features",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "npm:baileys-pro@latest",
+    "@hapi/boom": "^10.0.1",
+    "awesome-phonenumber": "^6.0.0",
+    "chalk": "^5.3.0",
+    "cli-box": "^6.0.0",
+    "cli-table3": "^0.6.3",
+    "figlet": "^1.7.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "gradient-string": "^2.0.2",
+    "human-readable": "^0.2.1",
+    "jimp": "^0.16.1",
+    "moment-timezone": "^0.5.43",
+    "node-cron": "^3.0.3",
+    "pino": "^8.16.2",
+    "chokidar": "^3.5.2",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "plugin",
+    "limit",
+    "premium"
+  ],
+  "author": "H4bDev",
+  "license": "MIT"
+}

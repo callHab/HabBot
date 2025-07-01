@@ -1,0 +1,20 @@
+{
+  "6287856546952@s.whatsapp.net": {
+    "id": "6287856546952@s.whatsapp.net",
+    "limit": 20,
+    "premium": false,
+    "premiumExpire": 0,
+    "totalCommands": 7,
+    "joinDate": 1751277799470,
+    "lastLimitReset": 1751364700572
+  },
+  "6287897624642@s.whatsapp.net": {
+    "id": "6287897624642@s.whatsapp.net",
+    "limit": 20,
+    "premium": true,
+    "premiumExpire": 0,
+    "totalCommands": 13,
+    "joinDate": 1751277821698,
+    "lastLimitReset": 1751277821698
+  }
+}

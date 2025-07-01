@@ -39,16 +39,88 @@ import cron from "node-cron"
 import { fileURLToPath } from "url"
 import caseHandler from "./habbot.js"
 import { exec } from "child_process"
-import figlet from "figlet"
-import gradient from "gradient-string"
-import Box from "cli-box"
+import figlet from "figlet" // Pastikan ini ada
+import gradient from "gradient-string" // Pastikan ini ada
+import Box from "cli-box" // Pastikan ini ada
 import { getWIBTime, getWIBDate, getWIBDateTime } from "./lib/utils/time.js"; // Import fungsi waktu
+
+// Load custom font for figlet
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+try {
+  require('figlet-fonts-bloody'); // Load custom font
+} catch (e) {
+  console.warn(chalk.yellow(`[WARNING] 'figlet-fonts-bloody' not found. Falling back to default font. Install with 'npm install figlet-fonts-bloody'`));
+}
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Import config
 import "./lib/settings/config.js"
+
+// ==================== [ UNIVERSAL HEADER GENERATOR ] ==================== //
+const generateHeader = (text, width = 60) => {
+  // Create gradient for header
+  const headerGradient = gradient(['#ff0000', '#9900cc', '#ff0066']);
+  
+  // Generate ASCII art text
+  const asciiText = figlet.textSync(text, {
+    font: 'Bloody', // Use 'Bloody' font
+    width: width,
+    whitespaceBreak: true
+  });
+
+  // Add dynamic border based on width
+  const border = '╔' + '═'.repeat(width - 2) + '╗';
+  const timeInfo = `║ ${new Date().toLocaleString()} ║`.padEnd(width - 1) + '║';
+  
+  return headerGradient(
+    `${border}\n` +
+    `${asciiText}\n` +
+    `${border}\n` +
+    `${timeInfo}\n` +
+    `${border.replace(/╔/g, '╚').replace(/╗/g, '╝').replace(/═/g, '═')}` // Replace corners for bottom border
+  );
+};
+
+// ==================== [ BOT INTERFACE DISPLAY ] ==================== //
+const displayBotInterface = () => {
+  console.clear();
+  
+  // 1. Header utama dengan nama bot
+  console.log(generateHeader(global.botName || 'HABBOT-MD'));
+  
+  // 2. Kotak informasi utama
+  const infoBox = new Box({
+    strify: false,
+    width: 50,
+    height: 8,
+    marks: {
+      nw: '╔', n: '═', ne: '╗',
+      e: '║', se: '╝', s: '═',
+      sw: '╚', w: '║'
+    }
+  }, {
+    text: [
+      ` ${chalk.bold('✧ VERSION:')} ${global.botVersion || '3.5.0'}`,
+      ` ${chalk.bold('✧ OWNER:')} ${global.owner?.[0]?.name || 'H4bDev'}`,
+      ` ${chalk.bold('✧ MODE:')} ${global.isPublic ? 'PUBLIC' : 'PRIVATE'}`,
+      ` ${chalk.bold('✧ STATUS:')} ${chalk.green('STARTING...')}`, // Initial status
+      ` ${chalk.bold('✧ THEME:')} BLOODY PURPLE`,
+      '',
+      ` ${chalk.italic('Type .menu for command list')}`
+    ].join('\n')
+  });
+
+  console.log(gradient('#ff00ff', '#7700ff')(infoBox.stringify()));
+  
+  // 3. Footer dinamis
+  const footerText = "⚡ POWERED BY H4BDEV ⚡";
+  console.log(generateHeader(footerText, footerText.length + 10));
+};
+
 
 // Create necessary directories if they don't exist
 const createDirectories = () => {
@@ -79,62 +151,6 @@ const getTerminalWidth = () => {
   const minWidth = global.appearance.theme.minWidth || 60
   const maxWidth = global.appearance.theme.maxWidth || 100
   return Math.max(minWidth, Math.min(columns, maxWidth))
-}
-
-const displayBanner = () => {
-  return new Promise((resolve) => {
-    console.clear()
-    const termWidth = getTerminalWidth()
-    const timeHeader = `[${getWIBDateTime()}]`
-    console.log(chalk.gray(timeHeader + " Starting HabBOT - MD...\n"))
-
-    figlet.text(
-      "HabBOT - MD",
-      {
-        font: "Standard",
-        horizontalLayout: "default",
-        verticalLayout: "default",
-        width: termWidth,
-        whitespaceBreak: true,
-      },
-      (err, data) => {
-        if (err) {
-          console.log(chalk.red("Something went wrong with figlet"))
-          console.dir(err)
-          resolve()
-          return
-        }
-
-        const mainGradient = gradient(global.appearance.theme.gradient)
-        console.log(mainGradient(data))
-
-        const title = `${global.botName} WhatsApp Bot v${global.botVersion} | © ${global.ownerName} 2025`
-
-        const boxConfig = {
-          w: termWidth - 4,
-          h: 3,
-          stringify: false,
-          marks: {
-            nw: "╔",
-            n: "═",
-            ne: "╗",
-            e: "║",
-            se: "╝",
-            s: "═",
-            sw: "╚",
-            w: "║",
-          },
-          hAlign: "center",
-          vAlign: "middle",
-        }
-
-        const titleBox = new Box(boxConfig, title)
-        console.log(mainGradient(titleBox.stringify()))
-        console.log(chalk.gray(`[${getWIBDateTime()}] System initialized\n`))
-        resolve()
-      },
-    )
-  })
 }
 
 // Initialize store
@@ -168,8 +184,8 @@ import { initAuthState } from "./lib/index.js"
 // Modify the startBot function to support different authentication methods
 async function startBot() {
   try {
-    // First, display the banner
-    await displayBanner()
+    // First, display the new bot interface
+    displayBotInterface();
 
     // Initialize authentication state
     console.log(chalk.cyan(`[${getWIBTime()}] Initializing authentication state...`))
@@ -199,13 +215,9 @@ async function startBot() {
     // Function to request pairing code
     const requestPairingCode = async () => {
       try {
-        const mainGradient = gradient(global.appearance.theme.gradient)
-        console.log(mainGradient("\n╔════════════════════════════════════════════════════════╗"))
-        console.log(mainGradient("║                  PAIRING CODE REQUIRED                  ║"))
-        console.log(mainGradient("╚════════════════════════════════════════════════════════╝\n"))
-
+        console.log(generateHeader("PAIRING CODE REQUIRED", 40)); // Use new header
         phoneNumber = await question(
-          console.log(chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `)),
+          chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `),
         )
 
         if (phoneNumber) {
@@ -222,7 +234,6 @@ async function startBot() {
     // Function to display pairing code with gradient
     const displayPairingCode = () => {
       if (pairingCodeRequested && code) {
-        const mainGradient = gradient(global.appearance.theme.gradient)
         const termWidth = getTerminalWidth()
 
         const boxConfig = {
@@ -245,10 +256,10 @@ async function startBot() {
 
         const titleBoxConfig = { ...boxConfig, h: 3 }
         const titleBox = new Box(titleBoxConfig, "PAIRING CODE")
-        console.log(mainGradient(titleBox.stringify()))
+        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(titleBox.stringify())) // Use gradient
 
         const codeBox = new Box(boxConfig, code)
-        console.log(mainGradient(codeBox.stringify()))
+        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(codeBox.stringify())) // Use gradient
 
         console.log(chalk.cyan(`[${getWIBTime()}] Enter this code in your WhatsApp app to pair your device`))
         console.log(chalk.yellow(`[${getWIBTime()}] Waiting for connection...\n`))
@@ -342,72 +353,53 @@ async function startBot() {
           console.log(chalk.red(`[${getWIBTime()}] Unknown DisconnectReason: ${reason}|${connection}`))
         }
       } else if (connection === "open") {
-        const mainGradient = gradient(global.appearance.theme.gradient)
-        figlet.text(
-          "CONNECTED",
-          {
-            font: "Small",
-            horizontalLayout: "default",
-            verticalLayout: "default",
-            width: getTerminalWidth(),
-            whitespaceBreak: true,
+        console.log(generateHeader("CONNECTED", 40)); // Use new header for CONNECTED
+
+        const boxConfig = {
+          w: getTerminalWidth() - 10,
+          h: 7,
+          stringify: false,
+          marks: {
+            nw: "╔",
+            n: "═",
+            ne: "╗",
+            e: "║",
+            se: "╝",
+            s: "═",
+            sw: "╚",
+            w: "║",
           },
-          (err, data) => {
-            if (err) {
-              console.log(chalk.red(`[${getWIBTime()}] Something went wrong with figlet`))
-              console.dir(err)
-              return
-            }
+          hAlign: "left",
+          vAlign: "middle",
+        }
 
-            console.log(mainGradient(data))
+        const connectionInfo = [
+          `Bot ID: ${conn.user.id}`,
+          `Mode: ${conn.public ? "public" : "self"}`,
+          `Time: ${getWIBDateTime()}`,
+          `Timezone: ${global.appearance.timezone || "Asia/Jakarta"}`,
+          `Status: Online and Ready`,
+        ].join("\n")
 
-            const boxConfig = {
-              w: getTerminalWidth() - 10,
-              h: 7,
-              stringify: false,
-              marks: {
-                nw: "╔",
-                n: "═",
-                ne: "╗",
-                e: "║",
-                se: "╝",
-                s: "═",
-                sw: "╚",
-                w: "║",
-              },
-              hAlign: "left",
-              vAlign: "middle",
-            }
+        const infoBox = new Box(boxConfig, connectionInfo)
+        console.log(gradient(['#ff00ff', '#7700ff'])(infoBox.stringify())) // Use gradient
 
-            const connectionInfo = [
-              `Bot ID: ${conn.user.id}`,
-              `Mode: ${conn.public ? "public" : "self"}`,
-              `Time: ${getWIBDateTime()}`,
-              `Timezone: ${global.appearance.timezone || "Asia/Jakarta"}`,
-              `Status: Online and Ready`,
-            ].join("\n")
+        console.log(chalk.green(`[${getWIBTime()}] Bot connected successfully!`))
 
-            const infoBox = new Box(boxConfig, connectionInfo)
-            console.log(mainGradient(infoBox.stringify()))
+        // Initialize plugins after connection
+        console.log(chalk.yellow(`\n[${getWIBTime()}] Initializing plugins...`))
+        import("./habbot.js")
+          .then((module) => {
+            module.reloadPlugins().then((count) => {
+              console.log(chalk.green(`[${getWIBTime()}] Loaded ${count} plugins`))
 
-            console.log(chalk.green(`[${getWIBTime()}] Bot connected successfully!`))
-
-            // Initialize plugins after connection
-            console.log(chalk.yellow(`\n[${getWIBTime()}] Initializing plugins...`))
-            import("./habbot.js")
-              .then((module) => {
-                module.reloadPlugins().then((count) => {
-                  console.log(chalk.green(`[${getWIBTime()}] Loaded ${count} plugins`))
-
-                  const successGradient = gradient(global.appearance.theme.gradients.success)
-                  console.log(successGradient(`\n[${getWIBTime()}] ${global.botName} is now fully operational!`))
-                })
-              })
-              .catch((err) => {
-                console.error(chalk.red(`[${getWIBTime()}] Error loading plugins:`), err)
-              })
-          },
-        )
+              const successGradient = gradient(global.appearance.theme.gradients.success)
+              console.log(successGradient(`\n[${getWIBTime()}] ${global.botName} is now fully operational!`))
+            })
+          })
+          .catch((err) => {
+            console.error(chalk.red(`[${getWIBTime()}] Error loading plugins:`), err)
+          })
       }
     })
 

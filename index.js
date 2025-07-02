@@ -39,10 +39,10 @@ import cron from "node-cron";
 import { fileURLToPath } from "url";
 import caseHandler from "./habbot.js";
 import { exec } from "child_process";
-import figlet from "figlet"; // Pastikan ini ada
-import gradient from "gradient-string"; // Pastikan ini ada
-import Box from "cli-box"; // Pastikan ini ada
-import { getWIBTime, getWIBDate, getWIBDateTime } from "./lib/utils/time.js"; // Import fungsi waktu
+import figlet from "figlet";
+import gradient from "gradient-string";
+import Box from "cli-box";
+import { getWIBTime, getWIBDate, getWIBDateTime } from "./lib/utils/time.js";
 
 // Load custom font for figlet
 import { createRequire } from 'module';
@@ -56,31 +56,39 @@ try {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import config
+// Import config (pastikan ini di-load sebelum digunakan)
 import "./lib/settings/config.js";
 
 // ==================== [ UNIVERSAL HEADER GENERATOR ] ==================== //
-const generateHeader = (text, width = 20) => {
-  // Create gradient for header
+const generateHeader = (text, width) => {
+  const headerConfig = global.appearance.theme.cliDisplay.header;
+  const actualWidth = width || headerConfig.mainHeaderWidth; // Use provided width or mainHeaderWidth as default
+  const selectedFont = headerConfig.defaultFont; // Use default font from config
+  const horizontalLayout = headerConfig.horizontalLayout;
+  const whitespaceBreak = headerConfig.whitespaceBreak;
+
   const headerGradient = gradient(['#ff0000', '#9900cc', '#ff0066']);
   
-  // Generate ASCII art text
   const asciiText = figlet.textSync(text, {
-    font: 'Bloody', // Use 'Bloody' font
-    width: width,
-    whitespaceBreak: true
+    font: selectedFont,
+    width: actualWidth,
+    horizontalLayout: horizontalLayout,
+    whitespaceBreak: whitespaceBreak
   });
 
-  // Add dynamic border based on width
-  const border = '╔' + '═'.repeat(width - 2) + '╗';
-  const timeInfo = `║ ${new Date().toLocaleString()} ║`.padEnd(width - 1) + '║';
+  // Calculate dynamic border length based on actual rendered ASCII text width
+  const renderedWidth = asciiText.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
+  const borderLength = Math.max(renderedWidth, actualWidth);
+
+  const border = '╔' + '═'.repeat(borderLength - 2) + '╗';
+  const timeInfo = `║ ${new Date().toLocaleString()} ║`.padEnd(borderLength - 1) + '║';
   
   return headerGradient(
     `${border}\n` +
     `${asciiText}\n` +
     `${border}\n` +
     `${timeInfo}\n` +
-    `${border.replace(/╔/g, '╚').replace(/╗/g, '╝').replace(/═/g, '═')}` // Replace corners for bottom border
+    `${border.replace(/╔/g, '╚').replace(/╗/g, '╝').replace(/═/g, '═')}`
   );
 };
 
@@ -88,18 +96,17 @@ const generateHeader = (text, width = 20) => {
 const displayBotInterface = () => {
   console.clear();
   
+  const cliDisplayConfig = global.appearance.theme.cliDisplay;
+
   // 1. Header utama dengan nama bot
-  console.log(generateHeader(global.botName || 'HABBOT-MD'));
+  console.log(generateHeader(global.botName || 'HABBOT-MD', cliDisplayConfig.header.mainHeaderWidth));
   
   // 2. Kotak informasi utama
+  const infoBoxConfig = cliDisplayConfig.infoBox;
   const infoBox = new Box({
-    width: 50,
-    height: 8,
-    marks: {
-      nw: '╔', n: '═', ne: '╗',
-      e: '║', se: '╝', s: '═',
-      sw: '╚', w: '║'
-    }
+    w: infoBoxConfig.width,
+    h: infoBoxConfig.height,
+    marks: infoBoxConfig.marks
   }, [
     ` ${chalk.bold('✧ VERSION:')} ${global.botVersion || '3.5.0'}`,
     ` ${chalk.bold('✧ OWNER:')} ${global.owner?.[0]?.name || 'H4bDev'}`,
@@ -114,7 +121,7 @@ const displayBotInterface = () => {
   
   // 3. Footer dinamis
   const footerText = "⚡ POWERED BY H4BDEV ⚡";
-  console.log(generateHeader(footerText, footerText.length + 10));
+  console.log(generateHeader(footerText, cliDisplayConfig.header.footerWidth));
 };
 
 // Create necessary directories if they don't exist
@@ -179,6 +186,10 @@ import { initAuthState } from "./lib/index.js";
 // Modify the startBot function to support different authentication methods
 async function startBot() {
   try {
+    // Pastikan config sudah di-load sebelum memanggil displayBotInterface
+    // Ini penting karena displayBotInterface menggunakan nilai dari global.appearance
+    // import "./lib/settings/config.js"; // Sudah di-import di bagian atas file
+
     // First, display the new bot interface
     displayBotInterface();
 
@@ -210,7 +221,8 @@ async function startBot() {
     // Function to request pairing code
     const requestPairingCode = async () => {
       try {
-        console.log(generateHeader("PAIRING CODE REQUIRED", 40)); // Use new header
+        const headerConfig = global.appearance.theme.cliDisplay.header;
+        console.log(generateHeader("PAIRING CODE REQUIRED", headerConfig.subHeaderWidth));
         phoneNumber = await question(
           chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `),
         );
@@ -230,31 +242,23 @@ async function startBot() {
     const displayPairingCode = () => {
       if (pairingCodeRequested && code) {
         const termWidth = getTerminalWidth();
+        const pairingCodeBoxConfig = global.appearance.theme.cliDisplay.pairingCodeBox;
 
         const boxConfig = {
-          w: Math.min(40, termWidth - 10),
-          h: 5,
+          w: Math.min(pairingCodeBoxConfig.width, termWidth - 10),
+          h: pairingCodeBoxConfig.height,
           stringify: false,
-          marks: {
-            nw: "╔",
-            n: "═",
-            ne: "╗",
-            e: "║",
-            se: "╝",
-            s: "═",
-            sw: "╚",
-            w: "║",
-          },
+          marks: pairingCodeBoxConfig.marks,
           hAlign: "center",
           vAlign: "middle",
         };
 
         const titleBoxConfig = { ...boxConfig, h: 3 };
         const titleBox = new Box(titleBoxConfig, "PAIRING CODE");
-        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(titleBox.stringify())); // Use gradient
+        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(titleBox.stringify()));
 
         const codeBox = new Box(boxConfig, code);
-        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(codeBox.stringify())); // Use gradient
+        console.log(gradient(['#ff0000', '#9900cc', '#ff0066'])(codeBox.stringify()));
 
         console.log(chalk.cyan(`[${getWIBTime()}] Enter this code in your WhatsApp app to pair your device`));
         console.log(chalk.yellow(`[${getWIBTime()}] Waiting for connection...\n`));
@@ -348,22 +352,14 @@ async function startBot() {
           console.log(chalk.red(`[${getWIBTime()}] Unknown DisconnectReason: ${reason}|${connection}`));
         }
       } else if (connection === "open") {
-        console.log(generateHeader("CONNECTED", 40)); // Use new header for CONNECTED
+        const headerConfig = global.appearance.theme.cliDisplay.header;
+        console.log(generateHeader("CONNECTED", headerConfig.subHeaderWidth));
 
         const boxConfig = {
-          w: getTerminalWidth() - 10,
-          h: 7,
+          w: getTerminalWidth() - 10, // Responsive width
+          h: 7, // Fixed height for connection info box
           stringify: false,
-          marks: {
-            nw: "╔",
-            n: "═",
-            ne: "╗",
-            e: "║",
-            se: "╝",
-            s: "═",
-            sw: "╚",
-            w: "║",
-          },
+          marks: global.appearance.theme.box, // Use general box marks from config
           hAlign: "left",
           vAlign: "middle",
         };
@@ -377,7 +373,7 @@ async function startBot() {
         ].join("\n");
 
         const infoBox = new Box(boxConfig, connectionInfo);
-        console.log(gradient(['#ff00ff', '#7700ff'])(infoBox.stringify())); // Use gradient
+        console.log(gradient(['#ff00ff', '#7700ff'])(infoBox.stringify()));
 
         console.log(chalk.green(`[${getWIBTime()}] Bot connected successfully!`));
 

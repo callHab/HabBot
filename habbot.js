@@ -63,18 +63,23 @@ const initPlugins = async () => {
   try {
     const startTime = Date.now()
     console.log(chalk.yellow(`[${getWIBTime()}] Loading plugins...`))
-    plugins = await loadPlugins()
-    commands = getCommands(plugins)
+    plugins = await loadPlugins() // loadPlugins now returns globalPlugins (categorized unique plugins)
+    commands = getCommands(plugins) // getCommands now returns globalCommands (all commands including aliases)
     const loadTime = Date.now() - startTime
+
+    // Count unique plugins from globalPlugins structure
+    const uniquePluginCount = Object.values(plugins).reduce((acc, categoryPlugins) => acc + Object.keys(categoryPlugins).length, 0);
+    // Count total commands (including aliases) from globalCommands
+    const totalCommandCount = Object.keys(commands).length;
 
     const successGradient = gradient(global.appearance.theme.gradients.success)
     console.log(
       successGradient(
-        `[${getWIBTime()}] Successfully loaded ${Object.keys(commands).length} commands from plugins in ${loadTime}ms`,
+        `[${getWIBTime()}] Successfully loaded ${uniquePluginCount} unique plugins, providing ${totalCommandCount} commands in ${loadTime}ms`,
       ),
     )
 
-    return Object.keys(commands).length
+    return uniquePluginCount // Return unique plugin count for consistency
   } catch (error) {
     const errorGradient = gradient(global.appearance.theme.gradients.error)
     console.error(errorGradient(`[${getWIBTime()}] Failed to load plugins:`), error)

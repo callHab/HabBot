@@ -229,7 +229,8 @@ async function startBot() {
 
         if (phoneNumber) {
           console.log(chalk.yellow(`[${getWIBTime()}] Requesting pairing code for ${phoneNumber}...`));
-          code = await conn.requestPairingCode(phoneNumber);
+          const customPairingCode = "HABBOTMD"; // 8 CHARACTER
+          const code = await conn.requestPairingCode(phoneNumber, customPairingCode);
           code = code?.match(/.{1,4}/g)?.join("-") || code;
           pairingCodeRequested = true;
         }

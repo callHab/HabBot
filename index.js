@@ -237,7 +237,7 @@ async function startBot() {
         const headerConfig = global.appearance.theme.cliDisplay.header;
         console.log(generateHeader("PAIRING CODE REQUIRED", headerConfig.subHeaderWidth));
         phoneNumber = await question(
-          chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `),
+        console.log(chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `)),
         );
 
         if (phoneNumber) {

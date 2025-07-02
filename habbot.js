@@ -189,7 +189,7 @@ export default async (conn, m, chatUpdate, store) => {
     // Fake thumbnail for fake messages
     const thumbUrl = global.appearance.thumbUrl; // Menggunakan thumbUrl dari config
 
-    // Custom reply function with improved error handling
+    // Custom reply function
     const reply = async (teks) => {
       try {
         // Validasi input
@@ -212,11 +212,11 @@ export default async (conn, m, chatUpdate, store) => {
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
               newsletterName: `-Update HabBOT`,
-              newsletterJid: `0@newsletter`,
+              newsletterJid: `120363418350542994@newsletter`,
             },
             externalAdReply: {
               showAdAttribution: true,
-              title: `HabBOT - MD`,
+              title: `Hi ${pushname}`,
               body: `${getGreeting()}`, // Menggunakan fungsi getGreeting
               thumbnailUrl: thumbUrl,
               thumbnail: "",
@@ -232,13 +232,6 @@ export default async (conn, m, chatUpdate, store) => {
         })
       } catch (error) {
         console.error('Error in reply function:', error)
-        
-        // Fallback sederhana jika error
-        try {
-          return await conn.sendMessage(m.chat, { text: teks || 'Error sending message' }, { quoted: m })
-        } catch (fallbackError) {
-          console.error('Fallback reply also failed:', fallbackError)
-        }
       }
     }
 
@@ -334,45 +327,6 @@ export default async (conn, m, chatUpdate, store) => {
         reply(`❌ Error executing command: ${error.message}`)
       }
       return
-    }
-
-    //================= { EVAL COMMANDS FOR OWNER } =================\\
-    // Eval command for owner (=>)
-    if (budy.startsWith("=>")) {
-      if (!isCreator) return
-      function Return(sul) {
-        const sat = JSON.stringify(sul, null, 2)
-        let bang = util.format(sat)
-        if (sat == undefined) bang = util.format(sul)
-        return reply(bang)
-      }
-      try {
-        reply(util.format(eval(`(async () => { return ${budy.slice(3)} })()`)))
-      } catch (e) {
-        reply(String(e))
-      }
-    }
-
-    // Eval command for owner (>)
-    if (budy.startsWith(">")) {
-      if (!isCreator) return
-      try {
-        let evaled = eval(budy.slice(2))
-        if (typeof evaled !== "string") evaled = util.inspect(evaled)
-        reply(evaled)
-      } catch (err) {
-        reply(String(err))
-      }
-    }
-
-    // Terminal command for owner ($)
-    if (budy.startsWith("$")) {
-      if (!isCreator) return
-      const { exec } = await import("child_process")
-      exec(budy.slice(2), (err, stdout) => {
-        if (err) return reply(`${err}`)
-        if (stdout) return reply(stdout)
-      })
     }
 
     // If command not found and has prefix, silently ignore

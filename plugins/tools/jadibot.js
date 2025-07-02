@@ -6,7 +6,7 @@ import pino from 'pino';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { getWIBTime } from './../../lib/utils/time.js';
-import { makeSQLiteStore } from '../../../lib/store.js';
+import { makeSQLiteStore } from './../../lib/store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -18,7 +18,7 @@ import baileys from "@whiskeysockets/baileys";
 const {
   default: makeWASocket,
   DisconnectReason,
-  makeInMemoryStore,
+  // makeInMemoryStore, // HAPUS ATAU KOMENTARI BARIS INI
   jidDecode,
   proto,
   getContentType,
@@ -58,6 +58,9 @@ const __dirname = path.dirname(__filename);
 
 // Import config (pastikan ini di-load sebelum digunakan)
 import "./lib/settings/config.js";
+
+// IMPORT STORE KUSTOM BARU
+import { makeSQLiteStore } from "./lib/store.js"; // <-- TAMBAHKAN INI
 
 // ==================== [ UNIVERSAL HEADER GENERATOR ] ==================== //
 const generateHeader = (text, width) => {
@@ -133,7 +136,7 @@ const createDirectories = () => {
     "./plugins/owner",
     "./plugins/info",
     "./tmp",
-    "./database",
+    "./database", // Pastikan direktori database ada untuk SQLite
     "./session"
   ];
   
@@ -155,8 +158,8 @@ const getTerminalWidth = () => {
   return Math.max(minWidth, Math.min(columns, maxWidth));
 };
 
-// Initialize store
-const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
+// Inisialisasi store (akan diganti dengan store kustom)
+// const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) }); // HAPUS ATAU KOMENTARI BARIS INI
 
 const question = (text) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -183,19 +186,23 @@ global.isPublic = true;
 // Replace the authentication initialization with the new utility
 import { initAuthState } from "./lib/index.js";
 
+// Cache untuk ID pesan yang sudah diproses untuk mencegah duplikasi
+const processedMessageIds = new Set();
+const MESSAGE_ID_CACHE_DURATION = 5000; // 5 detik
+
 // Modify the startBot function to support different authentication methods
 async function startBot() {
   try {
-    // Pastikan config sudah di-load sebelum memanggil displayBotInterface
-    // Ini penting karena displayBotInterface menggunakan nilai dari global.appearance
-    // import "./lib/settings/config.js"; // Sudah di-import di bagian atas file
-
     // First, display the new bot interface
     displayBotInterface();
 
     // Initialize authentication state
     console.log(chalk.cyan(`[${getWIBTime()}] Initializing authentication state...`));
     const { state, saveCreds } = await initAuthState(SESSION_DIR);
+
+    // INISIALISASI STORE KUSTOM BARU
+    console.log(chalk.cyan(`[${getWIBTime()}] Initializing SQLite store...`));
+    const store = await makeSQLiteStore(pino().child({ level: "silent", stream: "store" })); // <-- GUNAKAN STORE KUSTOM
 
     console.log(chalk.cyan(`[${getWIBTime()}] Creating WhatsApp connection...`));
     const conn = makeWASocket({
@@ -211,6 +218,7 @@ async function startBot() {
       syncFullHistory: true,
       markOnlineOnConnect: true,
       browser: ["Ubuntu", "Chrome", "20.0.04"],
+      store: store, // <-- PASS STORE KUSTOM KE BAILEYS
     });
 
     // Pairing code logic
@@ -224,14 +232,14 @@ async function startBot() {
         const headerConfig = global.appearance.theme.cliDisplay.header;
         console.log(generateHeader("PAIRING CODE REQUIRED", headerConfig.subHeaderWidth));
         phoneNumber = await question(
-          console.log(chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `),
-        ));
+          chalk.cyan(`[${getWIBTime()}] Enter your WhatsApp number starting with country code (e.g., 62xxx): `),
+        );
 
         if (phoneNumber) {
           console.log(chalk.yellow(`[${getWIBTime()}] Requesting pairing code for ${phoneNumber}...`));
           const customPairingCode = "HABBOTMD"; // 8 CHARACTER
-          const code = await conn.requestPairingCode(phoneNumber, customPairingCode);
-          code = code?.match(/.{1,4}/g)?.join("-") || code;
+          const requestedCode = await conn.requestPairingCode(phoneNumber, customPairingCode); // Gunakan nama variabel berbeda
+          code = requestedCode?.match(/.{1,4}/g)?.join("-") || requestedCode;
           pairingCodeRequested = true;
         }
       } catch (error) {
@@ -278,11 +286,22 @@ async function startBot() {
       try {
         const mek = chatUpdate.messages[0];
         if (!mek.message) return;
+
+        // FILTER DUPLIKASI PESAN DENGAN CACHE ID
+        const messageId = mek.key.id;
+        if (processedMessageIds.has(messageId)) {
+            console.log(chalk.yellow(`[${getWIBTime()}] Skipping duplicate message ID: ${messageId}`));
+            return;
+        }
+        processedMessageIds.add(messageId);
+        setTimeout(() => processedMessageIds.delete(messageId), MESSAGE_ID_CACHE_DURATION);
+        // AKHIR FILTER DUPLIKASI
+
         mek.message =
           Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
         if (mek.key && mek.key.remoteJid === "status@broadcast") return;
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
-        if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
+        // if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return; // Filter ini sudah ditangani oleh cache ID di atas
 
         const m = smsg(conn, mek, store);
         caseHandler(conn, m, chatUpdate, store);
@@ -338,7 +357,6 @@ async function startBot() {
         if (
           reason === DisconnectReason.badSession ||
           reason === DisconnectReason.connectionClosed ||
-          reason === DisconnectReason.connectionLost ||
           reason === DisconnectReason.connectionReplaced ||
           reason === DisconnectReason.restartRequired ||
           reason === DisconnectReason.timedOut
@@ -417,13 +435,13 @@ async function startBot() {
 
     return conn;
   } catch (error) {
-    console.error(chalk.red(`[${getWIBTime()}] Error starting bot:`), error);
+    console.error(chalk.red(`[${getWIBTime()}] Fatal error in startBot:`), error); // Perbaiki pesan error
     throw error;
   }
 }
 
 // Start the bot immediately
-startBot().catch((err) => console.log(chalk.red(`[${getWIBTime()}] Fatal error:`), err));
+startBot().catch((err) => console.log(chalk.red(`[${getWIBTime()}] Fatal error outside startBot:`), err)); // Perbaiki pesan error
 
 // Watch for file changes in index.js
 fs.watchFile(__filename, () => {

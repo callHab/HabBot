@@ -190,50 +190,52 @@ export default async (conn, m, chatUpdate, store) => {
     const thumbUrl = global.appearance.thumbUrl; // Menggunakan thumbUrl dari config
 
     // Custom reply function
-    const reply = async (teks) => {
-      try {
-        // Validasi input
-        if (!teks || typeof teks !== 'string') {
-          console.log('Invalid text provided to reply function:', teks)
-          teks = 'Error: Invalid message content'
-        }
-
-        // Sanitasi text untuk menghindari error
-        const sanitizedText = teks.toString().trim()
-        
-        if (sanitizedText.length === 0) {
-          console.log('Empty text provided to reply function')
-          return
-        }
-
-        const HabBOTJob = {
-          contextInfo: {
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-              newsletterName: `-Update HabBOT`,
-              newsletterJid: `120363418350542994@newsletter`,
-            },
-            externalAdReply: {
-              showAdAttribution: true,
-              title: `Hi ${pushname}`,
-              body: `${getGreeting()}`, // Menggunakan fungsi getGreeting
-              thumbnailUrl: thumbUrl,
-              thumbnail: "",
-              sourceUrl: "",
-            },
-          },
-          text: sanitizedText,
-        }
-        
-        return await conn.sendMessage(m.chat, HabBOTJob, {
-          quoted: m,
-          ephemeralExpiration: 999,
-        })
-      } catch (error) {
-        console.error('Error in reply function:', error)
-      }
+const reply = async (teks) => {
+  try {
+    // Validasi input
+    if (!teks || typeof teks !== 'string') {
+      console.log('Invalid text provided to reply function:', teks);
+      teks = 'Error: Invalid message content';
     }
+
+    // Sanitasi text untuk menghindari error
+    const sanitizedText = teks.toString().trim();
+    
+    if (sanitizedText.length === 0) {
+      console.log('Empty text provided to reply function');
+      return;
+    }
+
+    const HabBOTJob = {
+      contextInfo: {
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterName: `-Update HabBOT`,
+          newsletterJid: `120363418350542994@newsletter`,
+        },
+        externalAdReply: {
+          showAdAttribution: true,
+          title: `HabBot - MD`,
+          body: `${getGreeting()}`, // Menggunakan fungsi getGreeting
+          thumbnailUrl: thumbUrl,
+          thumbnail: "",
+          sourceUrl: "",
+        },
+      },
+      text: sanitizedText,
+    };
+    
+    await conn.sendMessage(m.chat, HabBOTJob, {
+      quoted: m,
+      ephemeralExpiration: 999,
+    });
+  } catch (error) {
+    console.error('Error in reply function:', error);
+    // Tambahkan logika untuk menangani error, misalnya, memberi tahu pengguna
+  }
+};
+
 
     // Check if bot should respond based on mode (public or self)
     const shouldRespond = global.isPublic || isCreator || m.key.fromMe

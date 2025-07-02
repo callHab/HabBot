@@ -11,12 +11,12 @@
 
 const handler = async (m, { conn }) => {
   const start = new Date().getTime()
-  await reply("Pinging...")
+  await m.reply("Pinging...")
   const end = new Date().getTime()
 
   const responseTime = end - start
 
-  reply(`🏓 Pong!\nResponse time: ${responseTime}ms`)
+  m.reply(`🏓 Pong!\nResponse time: ${responseTime}ms`)
 }
 
 handler.help = ["ping"]

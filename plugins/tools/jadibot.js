@@ -22,15 +22,19 @@ if (!fs.existsSync(JADIBOT_SESSION_BASE_DIR)) {
 
 const jadibotConnections = new Map();
 
-const handler = async (m, { conn, args, usedPrefix, command }) => {
+const handler = async (m, { conn, args, usedPrefix, command, reply }) => {
   try {
-    if (!args[0]) throw `Contoh penggunaan:\n${usedPrefix}${command} 62812xxxxxxx`;
+    if (!args[0]) {
+      return reply(`Contoh penggunaan:\n${usedPrefix}${command} 62812xxxxxxx`);
+    }
     
     const phoneNumber = args[0].replace(/[^0-9]/g, '');
-    if (!phoneNumber.startsWith('62') || phoneNumber.length < 10) throw 'Nomor harus diawali 62 dan minimal 10 digit!\nContoh: 6281234567890';
+    if (!phoneNumber.startsWith('62') || phoneNumber.length < 10) {
+      return reply('Nomor harus diawali 62 dan minimal 10 digit!\nContoh: 6281234567890') ;
+    }
     
     if (jadibotConnections.has(phoneNumber)) {
-      return m.reply(`📵 Nomor *${phoneNumber}* sudah memiliki sesi Jadibot aktif.\nTunggu hingga sesi sebelumnya berakhir.`);
+      return reply(`📵 Nomor *${phoneNumber}* sudah memiliki sesi Jadibot aktif.\nTunggu hingga sesi sebelumnya berakhir.`);
     }
 
     const sessionPath = path.join(JADIBOT_SESSION_BASE_DIR, phoneNumber);
@@ -66,15 +70,15 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
             console.error(chalk.red(`[JADIBOT] ❌ Error clearing session for ${phoneNumber}:`), cleanupError);
           }
           jadibotConnections.delete(phoneNumber);
-          m.reply(`🔒 Sesi Jadibot untuk *${phoneNumber}* telah berakhir.\nData sesi telah dihapus.`);
+          reply(`🔒 Sesi Jadibot untuk *${phoneNumber}* telah berakhir.\nData sesi telah dihapus.`);
         } else {
           jadibotConnections.delete(phoneNumber);
-          m.reply(`⚠️ Sesi Jadibot untuk *${phoneNumber}* terputus.\nSilakan ketik ulang perintah untuk mencoba kembali.`);
+          reply(`⚠️ Sesi Jadibot untuk *${phoneNumber}* terputus.\nSilakan ketik ulang perintah untuk mencoba kembali.`);
         }
       } else if (connection === 'open') {
         console.log(chalk.green(`[JADIBOT] 🌐 Connection opened for ${phoneNumber}`));
         jadibotConnections.set(phoneNumber, jadibotConn);
-        m.reply(`✅ *Jadibot Aktif!*\nAnda sekarang terkoneksi sebagai bot sementara dengan nomor:\n📱 *${phoneNumber}*\n\nBot akan tetap aktif hingga Anda logout perangkat atau sesi berakhir.`);
+        reply(`✅ *Jadibot Aktif!*\nAnda sekarang terkoneksi sebagai bot sementara dengan nomor:\n📱 *${phoneNumber}*\n\nBot akan tetap aktif hingga Anda logout perangkat atau sesi berakhir.`);
       }
     });
 
@@ -132,15 +136,12 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       errorMessage = '⏳ *Waktu permintaan habis.*\nPastikan nomor WhatsApp valid dan jaringan stabil.';
     }
     
-    m.reply(errorMessage);
+    reply(errorMessage);
   }
 };
 
 handler.help = ['jadibot <nomor>'];
 handler.tags = ['tools'];
-handler.command = /^(jadibot|jadino)$/i;
-handler.limit = true;
-handler.private = false;
-handler.admin = false;
+handler.command = ['jadibot'];
 
 export default handler;

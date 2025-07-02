@@ -101,7 +101,7 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
           title: `Jadibot - ${global.botName}`,
           body: 'Temporary WhatsApp Bot',
           thumbnailUrl: global.appearance.thumbUrl,
-          sourceUrl: "https://github.com/callHab/Habbotv3.5" // Opsional: tambahkan link repo Anda
+          sourceUrl: "https://github.com/callHab/HabBot" // Opsional: tambahkan link repo Anda
         }
       }
     })

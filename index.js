@@ -133,21 +133,26 @@ const createDirectories = () => {
     "./lib",
     "./lib/settings",
     "./plugins",
+    "./plugins/tools", // Tambahkan direktori tools untuk jadibot
     "./plugins/owner",
     "./plugins/info",
-    "./tmp",
-    "./database", // Pastikan direktori database ada untuk SQLite
+    "./tmp", // Pastikan direktori tmp ada
+    "./tmp/jadibot", // Pastikan direktori jadibot dalam tmp
+    "./database",
     "./session"
   ];
   
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(chalk.green(`[${getWIBTime()}] Created directory: ${dir}`));
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(chalk.green(`[${getWIBTime()}] Created directory: ${dir}`));
+      } catch (mkdirError) {
+        console.error(chalk.red(`[${getWIBTime()}] Error creating directory ${dir}:`), mkdirError);
+      }
     }
   });
 };
-
 createDirectories();
 
 // Get terminal width for responsive display

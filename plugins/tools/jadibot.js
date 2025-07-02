@@ -20,7 +20,7 @@ if (!fs.existsSync(JADIBOT_SESSION_DIR)) {
 
 const jadibotConnections = new Map();
 
-const handler = async (m, { conn, args }) => {
+const handler = async (m, { conn, args, reply }) => {
   try {
     if (!args[0]) {
       return reply(`Contoh penggunaan: ${global.prefix.main}jadibot 62812xxxxxxx`);

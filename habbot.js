@@ -188,23 +188,9 @@ export default async (conn, m, chatUpdate, store) => {
 
     // Fake thumbnail for fake messages
     const thumbUrl = global.appearance.thumbUrl; // Menggunakan thumbUrl dari config
-// Custom reply function
-const reply = async (teks) => {
+    // // Custom reply function
+    const reply = async (teks) => {
   try {
-    // Validasi input
-    if (!teks || typeof teks !== 'string') {
-      console.log('Invalid text provided to reply function:', teks);
-      teks = 'Error: Invalid message content';
-    }
-
-    // Sanitasi text untuk menghindari error
-    const sanitizedText = teks.toString().trim();
-    
-    if (sanitizedText.length === 0) {
-      console.log('Empty text provided to reply function');
-      return;
-    }
-
     const HabBOTJob = {
       contextInfo: {
         forwardingScore: 999,
@@ -216,23 +202,29 @@ const reply = async (teks) => {
         externalAdReply: {
           showAdAttribution: true,
           title: `HabBot - MD`,
-          body: `${getGreeting()}`, // Menggunakan fungsi getGreeting
+          body: getGreeting(),
           thumbnailUrl: thumbUrl,
           sourceUrl: "",
         },
       },
-      text: sanitizedText,
+      text: teks,
     };
-    
+
     // Kirim pesan dan simpan hasilnya
     const sentMessage = await conn.sendMessage(m.chat, HabBOTJob, {
       quoted: m,
     });
 
-    // --- Logika untuk menghapus pesan hanya untuk bot (pengirim) ---
-    // Pastikan sentMessage memiliki key yang valid
+    // Hapus pesan dari riwayat bot (hanya untuk bot)
     if (sentMessage && sentMessage.key) {
-      await conn.sendMessage(m.chat, { delete: sentMessage.key });
+      await conn.sendMessage(m.chat, {
+        delete: {
+          remoteJid: m.chat,
+          fromMe: true,
+          id: sentMessage.key.id,
+          participant: sentMessage.key.participant || undefined // untuk grup, jika ada
+        }
+      });
       console.log('Pesan berhasil dikirim dan dihapus dari riwayat bot.');
     } else {
       console.log('Pesan berhasil dikirim, tetapi gagal menghapus dari riwayat bot (key tidak ditemukan).');
@@ -240,7 +232,7 @@ const reply = async (teks) => {
 
   } catch (error) {
     console.error('Error in reply function:', error);
-    // Tambahkan logika untuk menangani error, misalnya, memberi tahu pengguna
+    // Kirim pesan error ke chat jika gagal
     try {
       await conn.sendMessage(m.chat, { text: `Terjadi kesalahan saat memproses permintaan Anda: ${error.message}` }, { quoted: m });
     } catch (sendError) {
@@ -248,7 +240,6 @@ const reply = async (teks) => {
     }
   }
 };
-
 
 
     // Check if bot should respond based on mode (public or self)

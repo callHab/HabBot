@@ -1,136 +1,205 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
-import path from 'path';
-import fs from 'fs';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
 import pino from 'pino';
+import { Boom } from '@hapi/boom';
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
-import { getWIBTime } from './../../lib/utils/time.js';
-import { makeSQLiteStore } from './../../lib/store.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const JADIBOT_SESSION_DIR = path.join(__dirname, '../../tmp/jadibot');
 
-// Direktori untuk session jadibot
-const JADIBOT_SESSION_DIR = path.join(process.cwd(), 'tmp/jadibot');
+// Pastikan direktori session ada
 if (!fs.existsSync(JADIBOT_SESSION_DIR)) {
   fs.mkdirSync(JADIBOT_SESSION_DIR, { recursive: true });
-  console.log(chalk.green(`[JADIBOT] Created session directory: ${JADIBOT_SESSION_DIR}`));
+  console.log(chalk.green(`[JADIBOT] Created base session directory: ${JADIBOT_SESSION_DIR}`));
 }
 
+// Map untuk menyimpan koneksi jadibot aktif
 const jadibotConnections = new Map();
 
-const handler = async (m, { conn, args, reply }) => {
+const handler = async (m, { conn, args, usedPrefix, command }) => {
   try {
     if (!args[0]) {
-      return reply(`Contoh penggunaan: ${global.prefix.main}jadibot 62812xxxxxxx`);
+      return m.reply(`Contoh penggunaan: ${usedPrefix}${command} 62812xxxxxxx`);
     }
     
     const phoneNumber = args[0].replace(/[^0-9]/g, '');
     if (!phoneNumber.startsWith('62') || phoneNumber.length < 10) {
-      return reply('Nomor harus diawali 62 (contoh: 62812xxxxxxx)');
+      return m.reply('Nomor harus diawali 62 (contoh: 62812xxxxxxx)');
     }
     
+    // Cek apakah sudah ada koneksi aktif
     if (jadibotConnections.has(phoneNumber)) {
-      return reply(`Nomor ${phoneNumber} sudah memiliki sesi Jadibot aktif`);
+      return m.reply(`Nomor ${phoneNumber} sudah memiliki sesi Jadibot aktif`);
     }
 
     const sessionPath = path.join(JADIBOT_SESSION_DIR, phoneNumber);
-    if (!fs.existsSync(sessionPath)) {
-      fs.mkdirSync(sessionPath, { recursive: true });
-      console.log(chalk.green(`[JADIBOT] Created session for: ${phoneNumber}`));
+    
+    // Bersihkan sesi lama jika ada
+    if (fs.existsSync(sessionPath)) {
+      console.log(chalk.yellow(`[JADIBOT] Cleaning up old session for: ${phoneNumber}`));
+      fs.rmSync(sessionPath, { recursive: true, force: true });
     }
+    
+    // Buat direktori session baru
+    fs.mkdirSync(sessionPath, { recursive: true });
+    console.log(chalk.green(`[JADIBOT] Created new session directory for: ${phoneNumber}`));
 
-    // Inisialisasi auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
     
-    // Inisialisasi store
-    const store = await makeSQLiteStore(pino().child({ level: "silent", stream: "store" }));
-    
-    // Konfigurasi koneksi yang lebih robust
     const jadibotConn = makeWASocket({
       logger: pino({ level: "silent" }),
       printQRInTerminal: false,
-      auth: state,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
+      },
+      browser: ["Ubuntu", "Chrome", "20.0.04"],
+      syncFullHistory: true,
       connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 0,
+      defaultQueryTimeoutMs: undefined,
       keepAliveIntervalMs: 10000,
       emitOwnEvents: true,
       fireInitQueries: true,
       generateHighQualityLinkPreview: true,
-      syncFullHistory: true,
       markOnlineOnConnect: true,
-      browser: ["Ubuntu", "Chrome", "20.0.04"],
-      store: store
+      getMessage: async (key) => {
+        return null;
+      },
     });
 
-    // Bind store ke event emitter
-    store.bind(jadibotConn.ev);
+    // Simpan kredensial saat berubah
+    jadibotConn.ev.on('creds.update', saveCreds);
 
-    // Event handler untuk koneksi
+    // Event handler untuk update koneksi
     jadibotConn.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect } = update;
+      const { connection, lastDisconnect, qr } = update;
       
       if (connection === 'close') {
         const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
         
-        if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
-          console.log(chalk.red(`[JADIBOT] Session for ${phoneNumber} logged out`));
+        // Hapus semua listener untuk mencegah memory leak
+        jadibotConn.ev.removeAllListeners(); 
+
+        if (reason === DisconnectReason.badSession) {
+          console.log(chalk.red(`[JADIBOT] Bad session for ${phoneNumber}, deleting...`));
           fs.rmSync(sessionPath, { recursive: true, force: true });
           jadibotConnections.delete(phoneNumber);
-          reply(`Sesi Jadibot untuk ${phoneNumber} telah berakhir`);
-        } else {
-          console.log(chalk.yellow(`[JADIBOT] Connection closed for ${phoneNumber}, reason: ${reason}`));
+          await m.reply(`❌ Sesi Jadibot untuk ${phoneNumber} rusak. Silakan coba lagi.`);
+        } else if (reason === DisconnectReason.connectionClosed || reason === DisconnectReason.connectionLost) {
+          console.log(chalk.yellow(`[JADIBOT] Connection lost for ${phoneNumber}, attempting reconnect...`));
+          // Hapus dari map agar bisa dicoba lagi
           jadibotConnections.delete(phoneNumber);
-          reply(`Sesi Jadibot untuk ${phoneNumber} terputus. Silakan coba lagi`);
+          await m.reply(`⚠️ Sesi Jadibot untuk ${phoneNumber} terputus. Silakan coba lagi dengan command yang sama.`);
+        } else if (reason === DisconnectReason.loggedOut) {
+          console.log(chalk.red(`[JADIBOT] Logged out for ${phoneNumber}`));
+          fs.rmSync(sessionPath, { recursive: true, force: true });
+          jadibotConnections.delete(phoneNumber);
+          await m.reply(`📴 Sesi Jadibot untuk ${phoneNumber} telah logout. Silakan buat sesi baru.`);
+        } else {
+          console.log(chalk.red(`[JADIBOT] Connection closed for ${phoneNumber}, reason: ${reason}`));
+          jadibotConnections.delete(phoneNumber);
+          await m.reply(`❌ Sesi Jadibot untuk ${phoneNumber} ditutup karena alasan tidak diketahui: ${reason}.`);
         }
-      } 
-      else if (connection === 'open') {
+      } else if (connection === 'open') {
         console.log(chalk.green(`[JADIBOT] Connection opened for ${phoneNumber}`));
         jadibotConnections.set(phoneNumber, jadibotConn);
-       reply(`✅ Jadibot untuk ${phoneNumber} berhasil terhubung!`);
+        await m.reply(`✅ Jadibot untuk ${phoneNumber} berhasil terhubung!\n\n_Bot akan aktif selama sesi berlangsung._`);
+        
+        // Setup message handler untuk jadibot
+        jadibotConn.ev.on('messages.upsert', async (chatUpdate) => {
+          try {
+            const msg = chatUpdate.messages[0];
+            if (!msg.message) return;
+            if (msg.key.remoteJid === 'status@broadcast') return; // Abaikan status
+            if (msg.key.id.startsWith('BAE5') && msg.key.id.length === 16) return; // Abaikan pesan Baileys internal
+
+            // Log pesan yang diterima
+            console.log(chalk.blue(`[JADIBOT ${phoneNumber}] Received message from ${msg.key.remoteJid}`));
+            // Contoh: Kirim balasan sederhana
+            // await jadibotConn.sendMessage(msg.key.remoteJid, { text: 'Halo, saya bot jadibot!' }, { quoted: msg });
+
+          } catch (err) {
+            console.error(chalk.red(`[JADIBOT ${phoneNumber} ERROR]`), err);
+          }
+        });
       }
     });
 
-    // Simpan kredensial saat ada pembaruan
-    jadibotConn.ev.on('creds.update', saveCreds);
-
     // Request pairing code
-    const pairingCode = await jadibotConn.requestPairingCode(phoneNumber);
-    const formattedCode = pairingCode.match(/.{1,4}/g).join('-');
+    await m.reply(`⏳ Meminta kode pairing untuk ${phoneNumber}...`);
     
-    // Kirim informasi ke user
-    const infoMsg = `📱 *JADIBOT TEMPORARY*\n\n` +
-                   `➤ *Nomor:* ${phoneNumber}\n` +
-                   `➤ *Pairing Code:* \`${formattedCode}\`\n` +
-                   `⏳ *Berlaku:* 30 menit\n\n` +
-                   `_Cara pakai:_\n` +
-                   `1. Buka WhatsApp di HP\n` +
-                   `2. Pengaturan → Perangkat tertaut → Tautkan perangkat\n` +
-                   `3. Masukkan kode pairing di atas\n\n` +
-                   `_Bot akan aktif selama 30 menit setelah kode digunakan_`;
-    
-    await m.reply(infoMsg);
+    try {
+      const pairingCode = await jadibotConn.requestPairingCode(phoneNumber);
+      if (!pairingCode) {
+        throw new Error("Failed to get pairing code. Please try again.");
+      }
+      const formattedCode = pairingCode?.match(/.{1,4}/g)?.join('-') || pairingCode;
+      
+      const infoMsg = `📱 *JADIBOT PAIRING CODE*\n\n` +
+                     `➤ *Nomor:* ${phoneNumber}\n` +
+                     `➤ *Pairing Code:* \`${formattedCode}\`\n` +
+                     `⏳ *Timeout:* 60 detik\n\n` +
+                     `*Cara pakai:*\n` +
+                     `1. Buka WhatsApp di HP target\n` +
+                     `2. Ketuk titik 3 → *Perangkat tertaut*\n` +
+                     `3. Ketuk *Tautkan perangkat*\n` +
+                     `4. Pilih *Tautkan dengan nomor telepon*\n` +
+                     `5. Masukkan kode di atas\n\n` +
+                     `⚠️ *Catatan:* Jangan bagikan kode ini kepada orang lain!`;
+      
+      await m.reply(infoMsg);
+      
+      // Set timeout untuk cleanup jika tidak terkoneksi
+      setTimeout(() => {
+        if (!jadibotConnections.has(phoneNumber)) {
+          console.log(chalk.yellow(`[JADIBOT] Timeout for ${phoneNumber}, cleaning up...`));
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          }
+          m.reply(`❌ Sesi Jadibot untuk ${phoneNumber} gagal terhubung dalam 60 detik. Silakan coba lagi.`);
+        }
+      }, 60000); // 60 detik timeout
+      
+    } catch (pairingError) {
+      console.error(chalk.red(`[JADIBOT] Pairing error for ${phoneNumber}:`), pairingError);
+      await m.reply(`❌ Gagal mendapatkan kode pairing untuk ${phoneNumber}. Pastikan nomor benar dan coba lagi. Error: ${pairingError.message}`);
+      // Hapus sesi yang mungkin sudah dibuat jika pairing gagal
+      if (fs.existsSync(sessionPath)) {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+      }
+      return;
+    }
 
   } catch (error) {
     console.error(chalk.red(`[JADIBOT ERROR]`), error);
     
-    let errorMessage = 'Gagal membuat pairing code. Silakan coba lagi nanti.';
-    if (error.message.includes('already has a pairing code')) {
-      errorMessage = `Nomor ${args[0]} sudah memiliki permintaan pairing code aktif. Tunggu beberapa saat atau gunakan nomor lain.`;
-    } else if (error.message.includes('Connection Terminated')) {
-      errorMessage = 'Koneksi terputus. Pastikan server memiliki akses internet yang stabil.';
+    let errorMessage = '❌ Gagal membuat sesi Jadibot.';
+    
+    if (error.message?.includes('Connection Terminated')) {
+      errorMessage = '❌ Koneksi terputus. Pastikan internet stabil dan coba lagi.';
+    } else if (error.message?.includes('Connection Closed')) {
+      errorMessage = '❌ Koneksi ditutup. Silakan coba lagi.';
+    } else if (error.message?.includes('rate-overlimit')) {
+      errorMessage = '❌ Terlalu banyak permintaan. Tunggu beberapa saat dan coba lagi.';
+    } else if (error.message?.includes('invalid')) {
+      errorMessage = '❌ Nomor tidak valid atau tidak terdaftar di WhatsApp.';
+    } else if (error.message?.includes('ECONNREFUSED')) {
+      errorMessage = '❌ Koneksi ditolak. Pastikan tidak ada firewall yang memblokir atau coba lagi nanti.';
     }
     
-    reply(`❌ ${errorMessage}`);
+    await m.reply(errorMessage);
+    const sessionPath = path.join(JADIBOT_SESSION_DIR, args[0].replace(/[^0-9]/g, ''));
+    if (fs.existsSync(sessionPath)) {
+      fs.rmSync(sessionPath, { recursive: true, force: true });
+    }
   }
 };
 
 handler.help = ['jadibot <nomor>'];
 handler.tags = ['tools'];
 handler.command = /^(jadibot)$/i;
-handler.limit = true;
-handler.private = false;
-handler.admin = false;
+handler.owner = true;
 
 export default handler;

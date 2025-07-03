@@ -188,8 +188,7 @@ export default async (conn, m, chatUpdate, store) => {
 
     // Fake thumbnail for fake messages
     const thumbUrl = global.appearance.thumbUrl; // Menggunakan thumbUrl dari config
-
-    // Custom reply function
+// Custom reply function
 const reply = async (teks) => {
   try {
     // Validasi input
@@ -219,22 +218,37 @@ const reply = async (teks) => {
           title: `HabBot - MD`,
           body: `${getGreeting()}`, // Menggunakan fungsi getGreeting
           thumbnailUrl: thumbUrl,
-          thumbnail: "",
           sourceUrl: "",
         },
       },
       text: sanitizedText,
     };
     
-    await conn.sendMessage(m.chat, HabBOTJob, {
+    // Kirim pesan dan simpan hasilnya
+    const sentMessage = await conn.sendMessage(m.chat, HabBOTJob, {
       quoted: m,
-      ephemeralExpiration: 999,
     });
+
+    // --- Logika untuk menghapus pesan hanya untuk bot (pengirim) ---
+    // Pastikan sentMessage memiliki key yang valid
+    if (sentMessage && sentMessage.key) {
+      await conn.sendMessage(m.chat, { delete: sentMessage.key });
+      console.log('Pesan berhasil dikirim dan dihapus dari riwayat bot.');
+    } else {
+      console.log('Pesan berhasil dikirim, tetapi gagal menghapus dari riwayat bot (key tidak ditemukan).');
+    }
+
   } catch (error) {
     console.error('Error in reply function:', error);
     // Tambahkan logika untuk menangani error, misalnya, memberi tahu pengguna
+    try {
+      await conn.sendMessage(m.chat, { text: `Terjadi kesalahan saat memproses permintaan Anda: ${error.message}` }, { quoted: m });
+    } catch (sendError) {
+      console.error('Failed to send error message:', sendError);
+    }
   }
 };
+
 
 
     // Check if bot should respond based on mode (public or self)

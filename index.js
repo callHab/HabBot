@@ -14,7 +14,7 @@ if (Number.parseInt(nodeVersion) < 20) {
   process.exit(1);
 }
 
-import baileys from "@whiskeysockets/baileys";
+import baileys from "bail";
 const {
   default: makeWASocket,
   DisconnectReason,

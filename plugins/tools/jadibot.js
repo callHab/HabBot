@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } from 'bail';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import fs from 'fs';

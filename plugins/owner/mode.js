@@ -59,4 +59,7 @@ const handler = async (m, { conn, args, text, command, reply, isCreator }) => {
 handler.help = ["mode", "self", "public"]
 handler.tags = ["owner"]
 handler.command = ["mode", "self", "public"]
-handler.owner = true
+handler.owner = true // Penting: ini menandakan command ini hanya untuk owner
+
+export default handler
+

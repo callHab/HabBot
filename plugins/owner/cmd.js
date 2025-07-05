@@ -81,3 +81,5 @@ handler.help = ["cmd"]
 handler.tags = ["owner"]
 handler.command = ["cmd"]
 handler.owner = true
+
+export default handler

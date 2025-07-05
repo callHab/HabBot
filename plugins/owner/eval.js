@@ -9,37 +9,29 @@ const __filename = fileURLToPath(import.meta.url);
 class CustomArray extends Array {
   constructor(...args) {
     if (typeof args[0] === "number") return super(Math.min(args[0], 10000));
-    return super(...args);
+    else return super(...args);
   }
 }
 
-const handler = async (m, { conn, args, body = "", command, isCreator, reply }) => {
+const handler = async (m, { conn, args, text = "", body = "", command, isCreator, reply }) => {
   if (!isCreator) return;
 
   let _return;
   let _syntax = "";
   let codeToExecute = "";
   let isShellCommand = false;
-  let inputSource = "";
 
-  // Normalisasi input
-  const inputText = (() => {
-    if (typeof body === 'string' && body.trim()) {
-      inputSource = 'body';
-      return body.trim();
-    }
-    if (args.length > 0) {
-      inputSource = 'args';
-      return args.join(' ').trim();
-    }
-    return '';
-  })();
+  // Normalize input - prioritize body over text/args
+  const inputText = (typeof body === 'string' && body.trim()) 
+    ? body.trim() 
+    : (text || args.join(' ')).trim();
 
-  // Deteksi perintah
+  // Command detection
   if (!inputText) {
-    return reply("📝 *EVAL MENU* [[v2.0]]\n\n▸ `> code`    : Eksekusi kode JavaScript\n▸ `=> expr`   : Return nilai ekspresi\n▸ `$ command` : Eksekusi shell command\n▸ `.eval code`: Alias evaluasi kode\n\nContoh:\n> 2+2\n=> [1,2,3].map(x=>x*2)\n$ ls -la");
+    return reply("📝 *EVAL MENU* [[v2.0]]\n\n▸ `> code`    : Execute JavaScript\n▸ `=> expr`   : Return expression\n▸ `$ command` : Execute shell command\n▸ `.eval code`: Alias for evaluation\n\nExamples:\n> 2+2\n=> [1,2,3].map(x=>x*2)\n$ ls -la");
   }
 
+  // Check for command prefixes
   if (inputText.startsWith("=>")) {
     codeToExecute = `return ${inputText.slice(2).trim()}`;
   } else if (inputText.startsWith(">")) {
@@ -47,15 +39,12 @@ const handler = async (m, { conn, args, body = "", command, isCreator, reply }) 
   } else if (inputText.startsWith("$")) {
     isShellCommand = true;
     codeToExecute = inputText.slice(1).trim();
-  } else if (command === "eval" && inputSource === 'args') {
-    codeToExecute = inputText;
-  } else {
-    // Default treatment as JS code if no prefix but from eval command
+  } else if (command === "eval") {
     codeToExecute = inputText;
   }
 
   if (!codeToExecute.trim()) {
-    return reply("❌ Tidak ada kode/perintah yang diberikan!");
+    return reply("❌ No code/command provided!");
   }
 
   if (isShellCommand) {
@@ -63,7 +52,7 @@ const handler = async (m, { conn, args, body = "", command, isCreator, reply }) 
       _return = await new Promise((resolve, reject) => {
         shellExec(codeToExecute, (error, stdout, stderr) => {
           if (error) {
-            reject("❌ Error: " + error.message + "\n" + (stderr || ""));
+            reject(`❌ Error: ${error.message}\n${stderr || ""}`);
           } else {
             resolve(stdout || "✅ Command executed (no output)");
           }
@@ -72,9 +61,7 @@ const handler = async (m, { conn, args, body = "", command, isCreator, reply }) 
     } catch (e) {
       _return = e;
     }
-    return reply("💻 *Shell Output:*\n" + 
-        (typeof _return === "string" ? _return : util.format(_return))
-    );
+    return reply(`💻 *Shell Output:*\n${typeof _return === "string" ? _return : util.format(_return)}`);
   }
 
   // Prepare execution context
@@ -97,16 +84,18 @@ const handler = async (m, { conn, args, body = "", command, isCreator, reply }) 
   };
 
   try {
-    // Check for syntax errors first
+    // Syntax check
     const syntaxCheck = syntaxError(
-      codeToExecute.startsWith("return") ? codeToExecute : `return (async () => { ${codeToExecute} })()`, 
+      codeToExecute.startsWith("return") 
+        ? codeToExecute 
+        : `return (async () => { ${codeToExecute} })()`,
       __filename
     );
     
     if (syntaxCheck) {
-      _syntax = "❌ Syntax Error:\n" + syntaxCheck.toString().replace(__filename, "eval");
+      _syntax = `❌ Syntax Error:\n${syntaxCheck.toString().replace(__filename, "eval")}`;
     } else {
-      // Execute the code
+      // Execute code
       const fn = new Function(...Object.keys(ctx), 
         codeToExecute.startsWith("return") 
           ? codeToExecute 
@@ -114,35 +103,28 @@ const handler = async (m, { conn, args, body = "", command, isCreator, reply }) 
       );
       
       _return = await fn(...Object.values(ctx));
-      
-      if (_return === undefined) {
-        _return = "✅ Code executed (no return value)";
-      }
+      if (_return === undefined) _return = "✅ Code executed (no return value)";
     }
   } catch (e) {
-    _return = "❌ Execution Error:\n" + e.stack;
+    _return = `❌ Execution Error:\n${e.stack}`;
   }
 
-  // Format the output
-  let output = "";
-  if (_syntax) output += _syntax + "\n\n";
-  output += "📝 *Input:*\n```javascript\n" + 
-    (codeToExecute.length > 600 
-      ? codeToExecute.substring(0, 600) + "..." 
-      : codeToExecute) + 
-    "\n```\n\n";
-  output += "📤 *Output:*\n```javascript\n" + 
-    (util.format(_return).length > 600 
-      ? util.format(_return).substring(0, 600) + "..." 
-      : util.format(_return)) + 
-    "\n```";
+  // Format output
+  const formatOutput = (str, maxLength = 600) => 
+    str.length > maxLength ? `${str.substring(0, maxLength)}...` : str;
 
-  // Send the result
+  const output = [
+    _syntax ? `${_syntax}\n\n` : "",
+    `📝 *Input:*\n\`\`\`javascript\n${formatOutput(codeToExecute)}\n\`\`\`\n\n`,
+    `📤 *Output:*\n\`\`\`javascript\n${formatOutput(util.format(_return))}\n\`\`\``
+  ].join("");
+
   await reply(output);
 };
 
 handler.help = ['eval <code>'];
 handler.tags = ['owner'];
 handler.command = /^(>|eval|\=>|\$)$/i;
+handler.owner = true;
 
 export default handler;

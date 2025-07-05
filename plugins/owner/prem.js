@@ -24,10 +24,24 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   
   if (subCommand === "add") {
     let target
-    const duration = parseInt(args[args.length - 1]) * 24 * 60 * 60 * 1000 || 0
+    let duration = 0 // 0 = permanent
     
-    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
-    if (!target) return reply("❌ Tag/reply user yang ingin dijadikan premium!")
+    // Check if duration is specified
+    const lastArg = args[args.length - 1]
+    if (!isNaN(parseInt(lastArg))) {
+      duration = parseInt(lastArg) * 24 * 60 * 60 * 1000 // Convert days to milliseconds
+    }
+    
+    // Get target user
+    if (quoted) {
+      target = quoted.sender
+    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+      target = m.mentionedJid[0]
+    } else if (args[1] && args[1].includes("@")) {
+      target = args[1].replace("@", "") + "@s.whatsapp.net"
+    } else {
+      return reply("❌ Tag/reply user yang ingin dijadikan premium!")
+    }
     
     db.addPremium(target, duration)
     
@@ -37,8 +51,16 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   } else if (subCommand === "del") {
     let target
     
-    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
-    if (!target) return reply("❌ Tag/reply user yang ingin dihapus dari premium!")
+    // Get target user
+    if (quoted) {
+      target = quoted.sender
+    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+      target = m.mentionedJid[0]
+    } else if (args[1] && args[1].includes("@")) {
+      target = args[1].replace("@", "") + "@s.whatsapp.net"
+    } else {
+      return reply("❌ Tag/reply user yang ingin dihapus dari premium!")
+    }
     
     db.removePremium(target)
     
@@ -47,8 +69,16 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   } else if (subCommand === "check") {
     let target
     
-    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
-    if (!target) return reply("❌ Tag/reply user yang ingin dicek status premiumnya!")
+    // Get target user
+    if (quoted) {
+      target = quoted.sender
+    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+      target = m.mentionedJid[0]
+    } else if (args[1] && args[1].includes("@")) {
+      target = args[1].replace("@", "") + "@s.whatsapp.net"
+    } else {
+      return reply("❌ Tag/reply user yang ingin dicek status premiumnya!")
+    }
     
     const user = db.getUser(target)
     const isPremium = db.isPremium(target)
@@ -96,4 +126,6 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
 handler.help = ["prem"]
 handler.tags = ["owner"]
 handler.command = ["prem", "premium"]
-handler.owner = true
+handler.owner = true // Penting: ini menandakan command ini hanya untuk owner
+
+export default handler

@@ -108,3 +108,5 @@ handler.help = ["limit"]
 handler.tags = ["owner"]
 handler.command = ["limit"]
 handler.owner = true
+
+export default handler

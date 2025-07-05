@@ -1,16 +1,12 @@
-/**
- * Profile Plugin
- * Menampilkan profil user
- */
-
 const handler = async (m, { conn, reply, pushname, db, sender, quoted }) => {
   let target = sender
   
-  // Check if replying to someone or mentioning
   if (quoted) {
     target = quoted.sender
-  } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+  } else if (m.mentionedJid?.length > 0) {
     target = m.mentionedJid[0]
+  } else if (args[1]?.includes("@")) { // Added args[1] check for direct mention
+    target = args[1].replace("@", "") + "@s.whatsapp.net"
   }
   
   const user = db.getUser(target)

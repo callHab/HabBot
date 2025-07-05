@@ -8,17 +8,15 @@ import { loadPlugins, getCommands, canExecuteCommand, executeCommand } from "./l
 import gradient from "gradient-string"
 import Table from "cli-table3"
 import db from "./lib/database.js"
-import { getWIBTime, getWIBDateTime, getGreeting } from "./lib/utils/time.js"; // Import fungsi waktu
-import { getGroupAdmins } from "./lib/myfunction.js"; // Import getGroupAdmins dari myfunction.js
+import { getWIBTime, getWIBDateTime, getGreeting } from "./lib/utils/time.js"
+import { getGroupAdmins } from "./lib/myfunction.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-//================= { REACT } =================\\
 const moji = ["📚", "💭", "💫", "🌌", "🌏", "✨", "🌷", "🍁", "🪻"]
 const randomemoji = () => moji[Math.floor(Math.random() * moji.length)]
 
-// Create a formatted log table with gradient
 const createLogTable = (data) => {
   const table = new Table({
     chars: {
@@ -54,22 +52,18 @@ const createLogTable = (data) => {
   return table.toString()
 }
 
-// Load plugins
 let plugins = {}
 let commands = {}
 
-// Initialize plugins
 const initPlugins = async () => {
   try {
     const startTime = Date.now()
     console.log(chalk.yellow(`[${getWIBTime()}] Loading plugins...`))
-    plugins = await loadPlugins() // loadPlugins now returns globalPlugins (categorized unique plugins)
-    commands = getCommands(plugins) // getCommands now returns globalCommands (all commands including aliases)
+    plugins = await loadPlugins()
+    commands = getCommands(plugins)
     const loadTime = Date.now() - startTime
 
-    // Count unique plugins from globalPlugins structure
     const uniquePluginCount = Object.values(plugins).reduce((acc, categoryPlugins) => acc + Object.keys(categoryPlugins).length, 0);
-    // Count total commands (including aliases) from globalCommands
     const totalCommandCount = Object.keys(commands).length;
 
     const successGradient = gradient(global.appearance.theme.gradients.success)
@@ -79,7 +73,7 @@ const initPlugins = async () => {
       ),
     )
 
-    return uniquePluginCount // Return unique plugin count for consistency
+    return uniquePluginCount
   } catch (error) {
     const errorGradient = gradient(global.appearance.theme.gradients.error)
     console.error(errorGradient(`[${getWIBTime()}] Failed to load plugins:`), error)
@@ -87,15 +81,11 @@ const initPlugins = async () => {
   }
 }
 
-// Function to reload plugins
-export const reloadPlugins = async () => {
-  return await initPlugins()
-}
+export const reloadPlugins = async () => initPlugins()
 
 export default async (conn, m, chatUpdate, store) => {
   try {
-    // Update the body parsing section
-    var body =
+    const body =
       (m.mtype === "conversation"
         ? m.message?.conversation
         : m.mtype === "imageMessage"
@@ -120,7 +110,6 @@ export default async (conn, m, chatUpdate, store) => {
 
     const budy = typeof m.text === "string" ? m.text : ""
 
-    // Handle multi-prefix configuration
     let prefix = global.prefix.main
     let isCmd = false
     let command = ""
@@ -143,7 +132,6 @@ export default async (conn, m, chatUpdate, store) => {
     const text = args.join(" ")
     const q = text
 
-    // Add section for quoted message handling
     const fatkuns = m.quoted || m
     const quoted =
       fatkuns.mtype === "buttonsMessage"
@@ -156,10 +144,8 @@ export default async (conn, m, chatUpdate, store) => {
               ? m.quoted
               : m
     const mime = (quoted.msg || quoted).mimetype || ""
-    const qmsg = quoted.msg || quoted
     const isMedia = /image|video|sticker|audio/.test(mime)
 
-    //================= { USER } =================\\
     const botNumber = await conn.decodeJid(conn.user.id)
     const ownerNumbers = global.owner.map((o) => o.number + "@s.whatsapp.net")
 
@@ -170,85 +156,75 @@ export default async (conn, m, chatUpdate, store) => {
 
     const isOwner = ownerNumbers.includes(sender)
     const isDev = global.owner.some((o) => o.number === senderNumber && o.isDev)
-    const itsMe = m.sender === botNumber ? true : false
+    const itsMe = m.sender === botNumber
     const isCreator = [botNumber, ...ownerNumbers].includes(m.sender)
     const pushname = m.pushName || `${senderNumber}`
     const isBot = botNumber.includes(senderNumber)
 
-    //================= { GROUP } =================\\
     const isGroup = m.isGroup
     const groupMetadata = isGroup ? await conn.groupMetadata(m.chat).catch(() => null) : null
     const groupName = groupMetadata?.subject || ""
     const participants = isGroup ? groupMetadata?.participants || [] : []
-    const groupAdmins = isGroup ? getGroupAdmins(participants) : "" // Menggunakan fungsi dari myfunction.js
+    const groupAdmins = isGroup ? getGroupAdmins(participants) : ""
     const isBotAdmins = isGroup ? groupAdmins.includes(botNumber) : false
     const isAdmins = isGroup ? groupAdmins.includes(m.sender) : false
     const groupOwner = isGroup ? groupMetadata?.owner : ""
     const isGroupOwner = isGroup ? (groupOwner ? groupOwner : groupAdmins).includes(m.sender) : false
 
-    // Fake thumbnail for fake messages
-    const thumbUrl = global.appearance.thumbUrl; // Menggunakan thumbUrl dari config
-    // // Custom reply function
+    const thumbUrl = global.appearance.thumbUrl;
     const reply = async (teks) => {
-  try {
-    const HabBOTJob = {
-      contextInfo: {
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterName: `-Update HabBOT`,
-          newsletterJid: `120363418350542994@newsletter`,
-        },
-        externalAdReply: {
-          showAdAttribution: true,
-          title: `HabBot - MD`,
-          body: getGreeting(),
-          thumbnailUrl: thumbUrl,
-          sourceUrl: "",
-        },
-      },
-      text: teks,
+      try {
+        const HabBOTJob = {
+          contextInfo: {
+            forwardingScore: 999,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+              newsletterName: `-Update HabBOT`,
+              newsletterJid: `120363418350542994@newsletter`,
+            },
+            externalAdReply: {
+              showAdAttribution: true,
+              title: `HabBot - MD`,
+              body: getGreeting(),
+              thumbnailUrl: thumbUrl,
+              sourceUrl: "",
+            },
+          },
+          text: teks,
+        };
+
+        const sentMessage = await conn.sendMessage(m.chat, HabBOTJob, {
+          quoted: m,
+        });
+
+        if (sentMessage && sentMessage.key) {
+          await conn.sendMessage(m.chat, {
+            delete: {
+              remoteJid: m.chat,
+              fromMe: true,
+              id: sentMessage.key.id,
+              participant: sentMessage.key.participant || undefined
+            }
+          });
+          console.log('Pesan berhasil dikirim dan dihapus dari riwayat bot.');
+        } else {
+          console.log('Pesan berhasil dikirim, tetapi gagal menghapus dari riwayat bot (key tidak ditemukan).');
+        }
+
+      } catch (error) {
+        console.error('Error in reply function:', error);
+        try {
+          await conn.sendMessage(m.chat, { text: `Terjadi kesalahan saat memproses permintaan Anda: ${error.message}` }, { quoted: m });
+        } catch (sendError) {
+          console.error('Failed to send error message:', sendError);
+        }
+      }
     };
 
-    // Kirim pesan dan simpan hasilnya
-    const sentMessage = await conn.sendMessage(m.chat, HabBOTJob, {
-      quoted: m,
-    });
-
-    // Hapus pesan dari riwayat bot (hanya untuk bot)
-    if (sentMessage && sentMessage.key) {
-      await conn.sendMessage(m.chat, {
-        delete: {
-          remoteJid: m.chat,
-          fromMe: true,
-          id: sentMessage.key.id,
-          participant: sentMessage.key.participant || undefined // untuk grup, jika ada
-        }
-      });
-      console.log('Pesan berhasil dikirim dan dihapus dari riwayat bot.');
-    } else {
-      console.log('Pesan berhasil dikirim, tetapi gagal menghapus dari riwayat bot (key tidak ditemukan).');
-    }
-
-  } catch (error) {
-    console.error('Error in reply function:', error);
-    // Kirim pesan error ke chat jika gagal
-    try {
-      await conn.sendMessage(m.chat, { text: `Terjadi kesalahan saat memproses permintaan Anda: ${error.message}` }, { quoted: m });
-    } catch (sendError) {
-      console.error('Failed to send error message:', sendError);
-    }
-  }
-};
-
-
-    // Check if bot should respond based on mode (public or self)
     const shouldRespond = global.isPublic || isCreator || m.key.fromMe
 
-    // If in self mode and not from owner, don't process the message
     if (!shouldRespond) return
 
-    // Console logging with improved formatting
     if (m.message && isCmd) {
       const logData = {
         SENDER: pushname || "Unknown",
@@ -262,46 +238,36 @@ export default async (conn, m, chatUpdate, store) => {
       console.log(createLogTable(logData))
     }
 
-    //================= { PLUGIN COMMAND HANDLER } =================\\
     if (isCmd && commands[command]) {
       try {
-        // Send a random emoji reaction
         await conn.sendMessage(m.chat, { react: { text: randomemoji(), key: m.key } })
 
-        // Get plugin metadata and handler
         const { category, handler, metadata } = commands[command]
 
-        // Check if command is owner-only
-        if (metadata && metadata.owner && !isCreator) {
+        if (metadata?.owner && !isCreator) {
           console.log(chalk.yellow(`[${getWIBTime()}] [PLUGIN] Owner-only command ${command} attempted by non-owner`))
           return
         }
 
-        // Check if command is for groups only
-        if (metadata && metadata.group && !isGroup) {
+        if (metadata?.group && !isGroup) {
           return reply("❌ Command ini hanya dapat digunakan di dalam grup!")
         }
 
-        // Check if command is for admins only
-        if (metadata && metadata.admin && !isAdmins) {
+        if (metadata?.admin && !isAdmins) {
           return reply("❌ Command ini hanya dapat digunakan oleh admin grup!")
         }
 
-        // Check if command requires bot to be admin
-        if (metadata && metadata.botAdmin && !isBotAdmins) {
+        if (metadata?.botAdmin && !isBotAdmins) {
           return reply("❌ Bot harus menjadi admin untuk menggunakan command ini!")
         }
 
-        // Check limit and premium
         const canExecute = canExecuteCommand(sender, command)
         if (!canExecute.canExecute) {
           return reply(canExecute.message)
         }
 
-        // Execute command and deduct limit if needed
         executeCommand(sender, command)
 
-        // Execute the plugin handler
         await handler(m, {
           conn,
           args,
@@ -336,7 +302,6 @@ export default async (conn, m, chatUpdate, store) => {
       return
     }
 
-    // If command not found and has prefix, silently ignore
     if (isCmd) {
       console.log(chalk.yellow(`[${getWIBTime()}] Unknown command: ${command} from ${pushname}`))
     }
@@ -345,7 +310,6 @@ export default async (conn, m, chatUpdate, store) => {
   }
 }
 
-//================= { FILE WATCHER } =================\\
 fs.watchFile(__filename, () => {
   fs.unwatchFile(__filename)
   console.log(chalk.redBright(`[${getWIBTime()}] Update ${__filename}`))

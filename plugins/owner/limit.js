@@ -1,5 +1,4 @@
 const handler = async (m, { conn, args, text, command, reply, isCreator, db, quoted }) => {
-  // if (!isCreator) return reply("❌ Command ini khusus untuk owner!") // Dihapus, validasi di habbot.js
 
   if (!args[0]) {
     return reply(`
@@ -27,20 +26,12 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   
   if (subCommand === "add") {
     let target
-    let amount = parseInt(args[args.length - 1])
+    const amount = parseInt(args[args.length - 1])
     
     if (isNaN(amount)) return reply("❌ Jumlah limit harus berupa angka!")
     
-    // Get target user
-    if (quoted) {
-      target = quoted.sender
-    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
-      target = m.mentionedJid[0]
-    } else if (args[1] && args[1].includes("@")) {
-      target = args[1].replace("@", "") + "@s.whatsapp.net"
-    } else {
-      return reply("❌ Tag/reply user yang ingin ditambah limitnya!")
-    }
+    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
+    if (!target) return reply("❌ Tag/reply user yang ingin ditambah limitnya!")
     
     db.addLimit(target, amount)
     const user = db.getUser(target)
@@ -50,16 +41,8 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   } else if (subCommand === "reset") {
     let target
     
-    // Get target user
-    if (quoted) {
-      target = quoted.sender
-    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
-      target = m.mentionedJid[0]
-    } else if (args[1] && args[1].includes("@")) {
-      target = args[1].replace("@", "") + "@s.whatsapp.net"
-    } else {
-      return reply("❌ Tag/reply user yang ingin direset limitnya!")
-    }
+    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
+    if (!target) return reply("❌ Tag/reply user yang ingin direset limitnya!")
     
     db.resetLimit(target)
     const user = db.getUser(target)
@@ -69,16 +52,8 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
   } else if (subCommand === "check") {
     let target
     
-    // Get target user
-    if (quoted) {
-      target = quoted.sender
-    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
-      target = m.mentionedJid[0]
-    } else if (args[1] && args[1].includes("@")) {
-      target = args[1].replace("@", "") + "@s.whatsapp.net"
-    } else {
-      return reply("❌ Tag/reply user yang ingin dicek limitnya!")
-    }
+    target = quoted?.sender || m.mentionedJid?.[0] || (args[1]?.includes("@") ? args[1].replace("@", "") + "@s.whatsapp.net" : null)
+    if (!target) return reply("❌ Tag/reply user yang ingin dicek limitnya!")
     
     const user = db.getUser(target)
     const isPremium = db.isPremium(target)
@@ -132,6 +107,4 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db, quo
 handler.help = ["limit"]
 handler.tags = ["owner"]
 handler.command = ["limit"]
-handler.owner = true // Penting: ini menandakan command ini hanya untuk owner
-
-export default handler
+handler.owner = true

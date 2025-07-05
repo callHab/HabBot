@@ -1,8 +1,3 @@
-/**
- * Status Plugin
- * Menampilkan status bot dan statistik
- */
-
 import { runtime } from "../../lib/myfunction.js"
 import os from "os"
 

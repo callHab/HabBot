@@ -1,5 +1,3 @@
-// Di dalam plugins/info/menu.js
-
 import os from 'os';
 import { performance } from 'perf_hooks';
 import { getCommands } from '../../lib/pluginLoader.js';
@@ -13,14 +11,11 @@ const handler = async (m, { reply, sender }) => {
   const allCommands = getCommands();
   const categorizedCommands = {};
 
-  // Mengelompokkan command utama dan aliases
   for (const cmdName in allCommands) {
     const cmdData = allCommands[cmdName];
     
-    // Jika ini adalah alias, abaikan (akan ditampilkan di command utama)
     if (cmdData.isAlias) continue;
 
-    // Ambil data command dari database
     const dbCommand = db.getCommand(cmdData.metadata.command[0]);
     
     const category = cmdData.category || 'uncategorized';
@@ -28,7 +23,6 @@ const handler = async (m, { reply, sender }) => {
       categorizedCommands[category] = [];
     }
 
-    // Tambahkan command utama dan semua aliasnya
     const mainCommand = {
       ...cmdData,
       metadata: {
@@ -36,8 +30,7 @@ const handler = async (m, { reply, sender }) => {
         premium: dbCommand.premium,
         limit: dbCommand.limit,
         limitCost: dbCommand.limitCost,
-        // Tambahkan informasi aliases
-        aliases: cmdData.metadata.command.slice(1) // Ambil semua alias setelah command utama
+        aliases: cmdData.metadata.command.slice(1)
       }
     };
     
@@ -52,13 +45,11 @@ const handler = async (m, { reply, sender }) => {
   menuText += `│ 📶 *Ping:* ${(performance.now() - t0).toFixed(2)} ms\n`;
   menuText += `╰─────────┈\n`;
 
-  // Mengurutkan kategori
   const sortedCategories = Object.keys(categorizedCommands).sort();
 
   for (const category of sortedCategories) {
     menuText += `\n📁 *${category.toUpperCase()}*\n`;
     
-    // Mengurutkan command dalam kategori
     categorizedCommands[category].sort((a, b) => 
       a.metadata.command[0].localeCompare(b.metadata.command[0])
     );
@@ -68,8 +59,7 @@ const handler = async (m, { reply, sender }) => {
       
       let commandDisplay = `${global.prefix.main}${mainCommand}`;
       
-      // Tambahkan aliases jika ada
-      if (cmdData.metadata.aliases && cmdData.metadata.aliases.length > 0) {
+      if (cmdData.metadata.aliases?.length > 0) {
         commandDisplay += ` (Alias: ${cmdData.metadata.aliases.map(a => `${global.prefix.main}${a}`).join(', ')})`;
       }
 

@@ -1,5 +1,4 @@
 const handler = async (m, { conn, args, text, command, reply, isCreator, db }) => {
-  // if (!isCreator) return reply("❌ Command ini khusus untuk owner!") // Dihapus, validasi di habbot.js
 
   if (!args[0]) {
     return reply(`
@@ -81,6 +80,4 @@ const handler = async (m, { conn, args, text, command, reply, isCreator, db }) =
 handler.help = ["cmd"]
 handler.tags = ["owner"]
 handler.command = ["cmd"]
-handler.owner = true // Penting: ini menandakan command ini hanya untuk owner
-
-export default handler
+handler.owner = true

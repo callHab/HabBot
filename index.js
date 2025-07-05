@@ -1,4 +1,3 @@
-// Node.js version check
 const nodeVersion = process.versions.node.split(".")[0];
 if (Number.parseInt(nodeVersion) < 20) {
   console.error("\x1b[31m%s\x1b[0m", "╔════════════════════════════════════════════════════════╗");
@@ -18,7 +17,6 @@ import baileys from "bail";
 const {
   default: makeWASocket,
   DisconnectReason,
-  // makeInMemoryStore, // HAPUS ATAU KOMENTARI BARIS INI
   jidDecode,
   proto,
   getContentType,
@@ -44,11 +42,10 @@ import gradient from "gradient-string";
 import Box from "cli-box";
 import { getWIBTime, getWIBDate, getWIBDateTime } from "./lib/utils/time.js";
 
-// Load custom font for figlet
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 try {
-  require('figlet-fonts-bloody'); // Load custom font
+  require('figlet-fonts-bloody');
 } catch (e) {
   console.warn(chalk.yellow(`[WARNING] 'figlet-fonts-bloody' not found. Falling back to default font. Install with 'npm install figlet-fonts-bloody'`));
 }
@@ -56,17 +53,14 @@ try {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import config (pastikan ini di-load sebelum digunakan)
 import "./lib/settings/config.js";
 
-// IMPORT STORE KUSTOM BARU
-import { makeSQLiteStore } from "./lib/store.js"; // <-- TAMBAHKAN INI
+import { makeSQLiteStore } from "./lib/store.js";
 
-// ==================== [ UNIVERSAL HEADER GENERATOR ] ==================== //
 const generateHeader = (text, width) => {
   const headerConfig = global.appearance.theme.cliDisplay.header;
-  const actualWidth = width || headerConfig.mainHeaderWidth; // Use provided width or mainHeaderWidth as default
-  const selectedFont = headerConfig.defaultFont; // Use default font from config
+  const actualWidth = width || headerConfig.mainHeaderWidth;
+  const selectedFont = headerConfig.defaultFont;
   const horizontalLayout = headerConfig.horizontalLayout;
   const whitespaceBreak = headerConfig.whitespaceBreak;
 
@@ -79,7 +73,6 @@ const generateHeader = (text, width) => {
     whitespaceBreak: whitespaceBreak
   });
 
-  // Calculate dynamic border length based on actual rendered ASCII text width
   const renderedWidth = asciiText.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
   const borderLength = Math.max(renderedWidth, actualWidth);
 
@@ -95,16 +88,13 @@ const generateHeader = (text, width) => {
   );
 };
 
-// ==================== [ BOT INTERFACE DISPLAY ] ==================== //
 const displayBotInterface = () => {
   console.clear();
   
   const cliDisplayConfig = global.appearance.theme.cliDisplay;
 
-  // 1. Header utama dengan nama bot
   console.log(generateHeader(global.botName || 'HABBOT-MD', cliDisplayConfig.header.mainHeaderWidth));
   
-  // 2. Kotak informasi utama
   const infoBoxConfig = cliDisplayConfig.infoBox;
   const infoBox = new Box({
     w: infoBoxConfig.width,
@@ -114,7 +104,7 @@ const displayBotInterface = () => {
     ` ${chalk.bold('✧ VERSION:')} ${global.botVersion || '3.5.0'}`,
     ` ${chalk.bold('✧ OWNER:')} ${global.owner?.[0]?.name || 'H4bDev'}`,
     ` ${chalk.bold('✧ MODE:')} ${global.isPublic ? 'PUBLIC' : 'PRIVATE'}`,
-    ` ${chalk.bold('✧ STATUS:')} ${chalk.green('STARTING...')}`, // Initial status
+    ` ${chalk.bold('✧ STATUS:')} ${chalk.green('STARTING...')}`,
     ` ${chalk.bold('✧ THEME:')} BLOODY PURPLE`,
     '',
     ` ${chalk.italic('Type .menu for command list')}`
@@ -122,22 +112,20 @@ const displayBotInterface = () => {
 
   console.log(gradient('#ff00ff', '#7700ff')(infoBox.string));
   
-  // 3. Footer dinamis
   const footerText = "⚡ POWERED BY H4BDEV ⚡";
   console.log(generateHeader(footerText, cliDisplayConfig.header.footerWidth));
 };
 
-// Create necessary directories if they don't exist
 const createDirectories = () => {
   const dirs = [
     "./lib",
     "./lib/settings",
     "./plugins",
-    "./plugins/tools", // Tambahkan direktori tools untuk jadibot
+    "./plugins/tools",
     "./plugins/owner",
     "./plugins/info",
-    "./tmp", // Pastikan direktori tmp ada
-    "./tmp/jadibot", // Pastikan direktori jadibot dalam tmp
+    "./tmp",
+    "./tmp/jadibot",
     "./database",
     "./session"
   ];
@@ -155,16 +143,12 @@ const createDirectories = () => {
 };
 createDirectories();
 
-// Get terminal width for responsive display
 const getTerminalWidth = () => {
   const columns = process.stdout.columns || 80;
   const minWidth = global.appearance.theme.minWidth || 60;
   const maxWidth = global.appearance.theme.maxWidth || 100;
   return Math.max(minWidth, Math.min(columns, maxWidth));
 };
-
-// Inisialisasi store (akan diganti dengan store kustom)
-// const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) }); // HAPUS ATAU KOMENTARI BARIS INI
 
 const question = (text) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -176,38 +160,29 @@ const question = (text) => {
   });
 };
 
-// Get session directory from config
 const SESSION_DIR = globalThis.sessionDir || "./session";
 
-// Create session directory if it doesn't exist
 if (!fs.existsSync(SESSION_DIR)) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
   console.log(chalk.green(`[${getWIBTime()}] Created session directory: ${SESSION_DIR}`));
 }
 
-// Bot mode (public or self)
 global.isPublic = true;
 
-// Replace the authentication initialization with the new utility
 import { initAuthState } from "./lib/index.js";
 
-// Cache untuk ID pesan yang sudah diproses untuk mencegah duplikasi
 const processedMessageIds = new Set();
-const MESSAGE_ID_CACHE_DURATION = 5000; // 5 detik
+const MESSAGE_ID_CACHE_DURATION = 5000;
 
-// Modify the startBot function to support different authentication methods
 async function startBot() {
   try {
-    // First, display the new bot interface
     displayBotInterface();
 
-    // Initialize authentication state
     console.log(chalk.cyan(`[${getWIBTime()}] Initializing authentication state...`));
     const { state, saveCreds } = await initAuthState(SESSION_DIR);
 
-    // INISIALISASI STORE KUSTOM BARU
     console.log(chalk.cyan(`[${getWIBTime()}] Initializing SQLite store...`));
-    const store = await makeSQLiteStore(pino().child({ level: "silent", stream: "store" })); // <-- GUNAKAN STORE KUSTOM
+    const store = await makeSQLiteStore(pino().child({ level: "silent", stream: "store" }));
 
     console.log(chalk.cyan(`[${getWIBTime()}] Creating WhatsApp connection...`));
     const conn = makeWASocket({
@@ -223,15 +198,13 @@ async function startBot() {
       syncFullHistory: true,
       markOnlineOnConnect: true,
       browser: ["Ubuntu", "Chrome", "20.0.04"],
-      store: store, // <-- PASS STORE KUSTOM KE BAILEYS
+      store: store,
     });
 
-    // Pairing code logic
     let phoneNumber;
     let code;
     let pairingCodeRequested = false;
 
-    // Function to request pairing code
     const requestPairingCode = async () => {
       try {
         const headerConfig = global.appearance.theme.cliDisplay.header;
@@ -242,8 +215,8 @@ async function startBot() {
 
         if (phoneNumber) {
           console.log(chalk.yellow(`[${getWIBTime()}] Requesting pairing code for ${phoneNumber}...`));
-          const customPairingCode = "HABBOTMD"; // 8 CHARACTER
-          const requestedCode = await conn.requestPairingCode(phoneNumber, customPairingCode); // Gunakan nama variabel berbeda
+          const customPairingCode = "HABBOTMD";
+          const requestedCode = await conn.requestPairingCode(phoneNumber, customPairingCode);
           code = requestedCode?.match(/.{1,4}/g)?.join("-") || requestedCode;
           pairingCodeRequested = true;
         }
@@ -252,7 +225,6 @@ async function startBot() {
       }
     };
 
-    // Function to display pairing code with gradient
     const displayPairingCode = () => {
       if (pairingCodeRequested && code) {
         const termWidth = getTerminalWidth();
@@ -279,7 +251,6 @@ async function startBot() {
       }
     };
 
-    // Check if registration is required and request pairing code
     if (!conn.authState.creds.registered) {
       await requestPairingCode();
       displayPairingCode();
@@ -292,7 +263,6 @@ async function startBot() {
         const mek = chatUpdate.messages[0];
         if (!mek.message) return;
 
-        // FILTER DUPLIKASI PESAN DENGAN CACHE ID
         const messageId = mek.key.id;
         if (processedMessageIds.has(messageId)) {
             console.log(chalk.yellow(`[${getWIBTime()}] Skipping duplicate message ID: ${messageId}`));
@@ -300,13 +270,11 @@ async function startBot() {
         }
         processedMessageIds.add(messageId);
         setTimeout(() => processedMessageIds.delete(messageId), MESSAGE_ID_CACHE_DURATION);
-        // AKHIR FILTER DUPLIKASI
 
         mek.message =
           Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
         if (mek.key && mek.key.remoteJid === "status@broadcast") return;
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
-        // if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return; // Filter ini sudah ditangani oleh cache ID di atas
 
         const m = smsg(conn, mek, store);
         caseHandler(conn, m, chatUpdate, store);
@@ -315,13 +283,10 @@ async function startBot() {
       }
     });
 
-    // Utility functions
     conn.decodeJid = (jid) => {
       if (!jid) return jid;
-      if (/:\d+@/gi.test(jid)) {
-        const decode = jidDecode(jid) || {};
-        return (decode.user && decode.server && decode.user + "@" + decode.server) || jid;
-      } else return jid;
+      const decode = jidDecode(jid) || {};
+      return (decode.user && decode.server && decode.user + "@" + decode.server) || jid;
     };
 
     conn.getName = (jid, withoutContact = false) => {
@@ -351,7 +316,6 @@ async function startBot() {
       );
     };
 
-    // Set public mode from config
     conn.public = global.isPublic;
     conn.serializeM = (m) => smsg(conn, m, store);
 
@@ -380,10 +344,10 @@ async function startBot() {
         console.log(generateHeader("CONNECTED", headerConfig.subHeaderWidth));
 
         const boxConfig = {
-          w: getTerminalWidth() - 10, // Responsive width
-          h: 7, // Fixed height for connection info box
+          w: getTerminalWidth() - 10,
+          h: 7,
           stringify: false,
-          marks: global.appearance.theme.box, // Use general box marks from config
+          marks: global.appearance.theme.box,
           hAlign: "left",
           vAlign: "middle",
         };
@@ -401,7 +365,6 @@ async function startBot() {
 
         console.log(chalk.green(`[${getWIBTime()}] Bot connected successfully!`));
 
-        // Initialize plugins after connection
         console.log(chalk.yellow(`\n[${getWIBTime()}] Initializing plugins...`));
         import("./habbot.js")
           .then((module) => {
@@ -440,15 +403,13 @@ async function startBot() {
 
     return conn;
   } catch (error) {
-    console.error(chalk.red(`[${getWIBTime()}] Fatal error in startBot:`), error); // Perbaiki pesan error
+    console.error(chalk.red(`[${getWIBTime()}] Fatal error in startBot:`), error);
     throw error;
   }
 }
 
-// Start the bot immediately
-startBot().catch((err) => console.log(chalk.red(`[${getWIBTime()}] Fatal error outside startBot:`), err)); // Perbaiki pesan error
+startBot().catch((err) => console.log(chalk.red(`[${getWIBTime()}] Fatal error outside startBot:`), err));
 
-// Watch for file changes in index.js
 fs.watchFile(__filename, () => {
   fs.unwatchFile(__filename);
   console.log(chalk.redBright(`[${getWIBTime()}] Update ${__filename}`));

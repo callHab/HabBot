@@ -1,14 +1,3 @@
-/**
- * Example Plugin - Ping
- * Tests the bot's response time
- *
- * @plugin
- * @name ping
- * @category example
- * @description Test bot response time
- * @usage .ping
- */
-
 const handler = async (m, { conn }) => {
   const start = new Date().getTime()
   await m.reply("Pinging...")

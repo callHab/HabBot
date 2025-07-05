@@ -2,97 +2,116 @@ import syntaxError from "syntax-error"
 import util from "util"
 import { fileURLToPath } from "url"
 import fs from "fs"
+import { exec as shellExec } from "child_process"
 
 const __filename = fileURLToPath(import.meta.url)
+
 class CustomArray extends Array {
   constructor(...args) {
-    // If the first argument is a number, limit it to a maximum of 10000 elements.
     if (typeof args[0] == "number") return super(Math.min(args[0], 10000))
     else return super(...args)
   }
 }
 
-/**
- * The main handler function for the eval command.
- * This function allows the bot owner to execute arbitrary JavaScript code.
- *
- * @param {object} m - The message object received by the bot.
- * @param {object} _2 
- * @param {object} _2.conn
- * @param {string[]} _2.args
- * @param {string} _2.body
- * @param {boolean} _2.isCreator
- * @param {object} _2.baileys
- */
-const handler = async (m, _2) => {
-  const { conn, args, body, isCreator, baileys } = _2
-
-  // Security check: Only the bot creator can use this command.
+const handler = async (m, { conn, args, body, isCreator, reply }) => {
   if (!isCreator) return
 
-  let _return // Variable to store the result of the evaluated code.
-  let _syntax = "" // Variable to store syntax error messages.
+  let _return
+  let _syntax = ""
+  let codeToExecute = ""
+  let isShellCommand = false
 
-  // Determine the prefix used (">" or "=>").
-  // "=>" implies a return statement is automatically added.
-  const usedPrefix = body.startsWith("=>") ? "=>" : ">"
-  // Extract the code by removing the prefix and trimming whitespace.
-  const noPrefix = body.slice(usedPrefix.length).trim()
-  // Prepare the text for evaluation: add "return " if "=>" prefix was used.
-  const _text = (/^=/.test(usedPrefix) ? "return " : "") + noPrefix
-  // Store the original value of m.exp (if it exists).
-  // m.exp is not defined in the provided context, but might be a custom property for XP.
+  // Tentukan prefiks utama
+  const prefix = global.prefix.main
+
+  // Cek prefiks dan ambil kode yang akan dieksekusi
+  if (body.startsWith(`${prefix}>`)) {
+    codeToExecute = body.slice(`${prefix}>`.length).trim()
+  } else if (body.startsWith(`${prefix}=>`)) {
+    codeToExecute = "return " + body.slice(`${prefix}=>`.length).trim()
+  } else if (body.startsWith(`${prefix}$`)) {
+    isShellCommand = true
+    codeToExecute = body.slice(`${prefix}$`.length).trim()
+  } else if (body.startsWith(`${prefix}eval`)) {
+    if (args.length === 0) {
+      return reply("Silakan berikan kode JavaScript atau perintah shell untuk dieksekusi.\n\nContoh:\n`> console.log('Hello')`\n`=> 'Hello World'`\n`$ ls -la`")
+    }
+    codeToExecute = args.join(" ")
+  } else {
+    return reply("Prefiks tidak dikenal untuk perintah eval. Gunakan `.` `>` `=>` atau `$`")
+  }
+
+  if (!codeToExecute) {
+    return reply("Tidak ada kode atau perintah yang diberikan untuk dieksekusi.")
+  }
+
+  // --- Eksekusi Perintah Shell ---
+  if (isShellCommand) {
+    try {
+      _return = await new Promise((resolve, reject) => {
+        shellExec(codeToExecute, (error, stdout, stderr) => {
+          if (error) {
+            reject(`Error: ${error.message}\nStderr: ${stderr}`)
+            return
+          }
+          if (stderr) {
+            resolve(`Stderr: ${stderr}`)
+            return
+          }
+          resolve(stdout)
+        })
+      })
+    } catch (e) {
+      _return = e
+    } finally {
+      reply(util.format(_return))
+    }
+    return
+  }
+
   const old = m.exp * 1
 
   try {
-    let i = 15 // Counter to limit the number of 'print' calls to prevent spam.
+    let i = 15
     const f = {
-      exports: {}, // A dummy module.exports object for the evaluated code.
+      exports: {},
     }
 
-    // Create a new asynchronous function dynamically from the input string (_text).
-    // This function will have specific variables injected into its scope.
     const exec = new (async () => {}).constructor(
-      "print", // Custom function to print output to console and WhatsApp.
-      "m", // The message object.
-      "handler", // Reference to this handler function.
-      "require", // Node.js 'require' function.
-      "conn", // The Baileys connection object.
-      "Array", // The CustomArray constructor (overrides native Array).
-      "process", // Node.js 'process' object.
-      "args", // Command arguments.
-      "module", // The module object.
-      "exports", // The exports object.
-      "argument", // An array containing [conn, _2] for additional context.
-      _text, // The actual JavaScript code to execute.
+      "print",
+      "m",
+      "handler",
+      "require",
+      "conn",
+      "Array",
+      "process",
+      "args",
+      "module",
+      "exports",
+      "argument",
+      codeToExecute,
     )
 
-    // Execute the dynamically created function.
-    // 'conn' is set as the 'this' context for the evaluated code.
     _return = await exec.call(
       conn,
-      // Implementation of the custom 'print' function.
       (...args) => {
-        if (--i < 1) return // Stop printing after 15 calls.
-        console.log(...args) // Log to the bot's console.
-        // Send the formatted output back to the user in the chat.
+        if (--i < 1) return
+        console.log(...args)
         return conn.sendMessage(m.key.remoteJid, { text: util.format(...args) }, { quoted: m })
       },
       m,
       handler,
-      // Dynamically create a 'require' function for the current module's context.
       (await import("module")).createRequire(import.meta.url),
       conn,
-      CustomArray, // Pass CustomArray to be used when 'Array' is referenced in eval.
+      CustomArray,
       process,
       args,
       f,
       f.exports,
-      [conn, _2], // Pass additional arguments.
+      [conn, _2],
     )
   } catch (e) {
-    // Catch and format syntax errors using the 'syntax-error' library.
-    const err = syntaxError(_text, "Execution Function", {
+    const err = syntaxError(codeToExecute, "Execution Function", {
       allowReturnOutsideFunction: true,
       allowAwaitOutsideFunction: true,
     })

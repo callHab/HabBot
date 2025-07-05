@@ -20,7 +20,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "gradient-string": "^2.0.2",
     "human-readable": "^0.2.1",
-    "jimp": "^0.16.1",
+    "jimp": "^0.22.12",
     "moment-timezone": "^0.5.43",
     "node-cron": "^3.0.3",
     "pino": "^8.16.2",

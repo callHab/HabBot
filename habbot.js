@@ -197,20 +197,6 @@ export default async (conn, m, chatUpdate, store) => {
           quoted: m,
         });
 
-        if (sentMessage && sentMessage.key) {
-          await conn.sendMessage(m.chat, {
-            delete: {
-              remoteJid: m.chat,
-              fromMe: true,
-              id: sentMessage.key.id,
-              participant: sentMessage.key.participant || undefined
-            }
-          });
-          console.log('Pesan berhasil dikirim dan dihapus dari riwayat bot.');
-        } else {
-          console.log('Pesan berhasil dikirim, tetapi gagal menghapus dari riwayat bot (key tidak ditemukan).');
-        }
-
       } catch (error) {
         console.error('Error in reply function:', error);
         try {

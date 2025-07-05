@@ -15,6 +15,9 @@ class CustomArray extends Array {
 
 const handler = async (m, { conn, args, body, command, isCreator, reply }) => {
   if (!isCreator) return
+  if (!body || typeof body !== 'string') {
+    return reply("❌ Tidak ada kode/perintah yang diberikan!")
+  }
 
   let _return
   let _syntax = ""

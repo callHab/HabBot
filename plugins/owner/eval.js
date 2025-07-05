@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 class CustomArray extends Array {
   constructor(...args) {
     if (typeof args[0] === "number") return super(Math.min(args[0], 10000));
-    else return super(...args);
+    return super(...args);
   }
 }
 
@@ -21,32 +21,68 @@ const handler = async (m, { conn, args, text = "", body = "", command, isCreator
   let codeToExecute = "";
   let isShellCommand = false;
 
-  // Normalize input - prioritize body over text/args
-  const inputText = (typeof body === 'string' && body.trim()) 
-    ? body.trim() 
-    : (text || args.join(' ')).trim();
+  // STANDARDISASI INPUT - prioritaskan body, lalu text, terakhir args
+  const getInput = () => {
+    if (typeof body === 'string' && body.trim()) return body;
+    if (typeof text === 'string' && text.trim()) return text;
+    return args.join(' ').trim();
+  };
 
-  // Command detection
-  if (!inputText) {
-    return reply("📝 *EVAL MENU* [[v2.0]]\n\n▸ `> code`    : Execute JavaScript\n▸ `=> expr`   : Return expression\n▸ `$ command` : Execute shell command\n▸ `.eval code`: Alias for evaluation\n\nExamples:\n> 2+2\n=> [1,2,3].map(x=>x*2)\n$ ls -la");
+  const inputText = getInput();
+
+  // DETEKSI COMMAND DENGAN PENANGANAN KHUSUS
+  const detectCommandType = (input) => {
+    if (!input) return null;
+    
+    // Cek prefix secara eksplisit
+    if (input.startsWith("=>")) {
+      return { type: "return", code: input.slice(2).trim() };
+    } else if (input.startsWith(">")) {
+      return { type: "exec", code: input.slice(1).trim() };
+    } else if (input.startsWith("$")) {
+      return { type: "shell", code: input.slice(1).trim() };
+    }
+    return { type: "eval", code: input.trim() };
+  };
+
+  const commandType = detectCommandType(inputText);
+
+  // TAMPILAN HELP JIKA TIDAK ADA INPUT
+  if (!commandType.code) {
+    const helpMsg = [
+      "📝 *EVAL MENU* [[v3.0]]",
+      "",
+      "▸ `> code`    : Eksekusi kode JavaScript",
+      "▸ `=> expr`   : Return nilai ekspresi",
+      "▸ `$ command` : Eksekusi shell command",
+      "▸ `.eval code`: Alias evaluasi kode",
+      "",
+      "Contoh:",
+      "> 2+2",
+      "=> [1,2,3].map(x=>x*2)",
+      "$ ls -la"
+    ].join("\n");
+    return reply(helpMsg);
   }
 
-  // Check for command prefixes
-  if (inputText.startsWith("=>")) {
-    codeToExecute = `return ${inputText.slice(2).trim()}`;
-  } else if (inputText.startsWith(">")) {
-    codeToExecute = inputText.slice(1).trim();
-  } else if (inputText.startsWith("$")) {
-    isShellCommand = true;
-    codeToExecute = inputText.slice(1).trim();
-  } else if (command === "eval") {
-    codeToExecute = inputText;
+  // PROSES BERDASARKAN JENIS COMMAND
+  switch (commandType.type) {
+    case "return":
+      codeToExecute = `return ${commandType.code}`;
+      break;
+    case "exec":
+      codeToExecute = commandType.code;
+      break;
+    case "shell":
+      isShellCommand = true;
+      codeToExecute = commandType.code;
+      break;
+    case "eval":
+      codeToExecute = commandType.code;
+      break;
   }
 
-  if (!codeToExecute.trim()) {
-    return reply("❌ No code/command provided!");
-  }
-
+  // EKSEKUSI SHELL COMMAND
   if (isShellCommand) {
     try {
       _return = await new Promise((resolve, reject) => {
@@ -64,7 +100,7 @@ const handler = async (m, { conn, args, text = "", body = "", command, isCreator
     return reply(`💻 *Shell Output:*\n${typeof _return === "string" ? _return : util.format(_return)}`);
   }
 
-  // Prepare execution context
+  // PREPARE EXECUTION CONTEXT
   const ctx = {
     console,
     m,
@@ -84,32 +120,29 @@ const handler = async (m, { conn, args, text = "", body = "", command, isCreator
   };
 
   try {
-    // Syntax check
-    const syntaxCheck = syntaxError(
-      codeToExecute.startsWith("return") 
-        ? codeToExecute 
-        : `return (async () => { ${codeToExecute} })()`,
-      __filename
-    );
+    // SYNTAX CHECK
+    const execCode = codeToExecute.startsWith("return") 
+      ? codeToExecute 
+      : `return (async () => { ${codeToExecute} })()`;
+    
+    const syntaxCheck = syntaxError(execCode, __filename);
     
     if (syntaxCheck) {
       _syntax = `❌ Syntax Error:\n${syntaxCheck.toString().replace(__filename, "eval")}`;
     } else {
-      // Execute code
-      const fn = new Function(...Object.keys(ctx), 
-        codeToExecute.startsWith("return") 
-          ? codeToExecute 
-          : `return (async () => { ${codeToExecute} })()`
-      );
-      
+      // EXECUTE CODE
+      const fn = new Function(...Object.keys(ctx), execCode);
       _return = await fn(...Object.values(ctx));
-      if (_return === undefined) _return = "✅ Code executed (no return value)";
+      
+      if (_return === undefined) {
+        _return = "✅ Code executed (no return value)";
+      }
     }
   } catch (e) {
     _return = `❌ Execution Error:\n${e.stack}`;
   }
 
-  // Format output
+  // FORMAT OUTPUT
   const formatOutput = (str, maxLength = 600) => 
     str.length > maxLength ? `${str.substring(0, maxLength)}...` : str;
 
@@ -124,7 +157,7 @@ const handler = async (m, { conn, args, text = "", body = "", command, isCreator
 
 handler.help = ['eval <code>'];
 handler.tags = ['owner'];
-handler.command = /^(>|eval|\=>|\$)$/i;
+handler.command = /^(>|\=>|\$|eval)/i;
 handler.owner = true;
 
 export default handler;
